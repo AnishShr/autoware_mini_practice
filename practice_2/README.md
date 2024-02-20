@@ -2,42 +2,38 @@
 
 # Practice 2 - Localizer
 
-The primary task of the localizer is to determine the vehicle's position on the map. The position is the result of measurements done by the [GNSS - Global Navigation Satellite System]((https://en.wikipedia.org/wiki/Satellite_navigation)). Speed can be determined from consecutive locations (shift in location and difference in the time). More sophisticated systems (like Novatel SPAN system, for example [Novatel PwrPak7D](https://novatel.com/products/receivers/enclosures/pwrpak7d)) include also IMU (Inertial Measurement Unit) measurements to improve the accuracy of GNSS positioning.
+The primary task of the localizer is to determine the vehicle's position on the map. This can be done using GNSS ([Global Navigation Satellite System](https://en.wikipedia.org/wiki/Satellite_navigation)), using lidar or using camera. In this practice we are focusing on localization using GNSS, as this is the easiest to implement and suffices for simpler experiments.
 
-In this practice, we will use logged data from the car saved in the rosbag file and provided in the `common` package. The GNSS log is recorded in the `/novatel/oem7/inspva` topic:
-* location is given as latitude and longitude (geographic coordinates in WGS84 system, with [EPSG code 4326](https://epsg.io/4326))
-* velocity has three components (east, north and up).
+In this practice, we will use logged data from the car [Novatel PwrPak7D](https://novatel.com/products/receivers/enclosures/pwrpak7d) GNSS sensor. Novatel system combines the absolute GNSS positions with relative IMU (Inertial Measurement Unit) measurements to improve accuracy. The accuracy is further improved by using stationary ground base stations within RTK ([Real-Time Kinematic](https://en.wikipedia.org/wiki/Real-time_kinematic_positioning)) system. In addition to location it also determines the speed of the vehicle from consecutive locations.
 
-The localizer node must take the latitude and longitude and convert them to map coordinates, which are in UTM zone 35N (the cartesian coordinate system with Universal Transverse Mercator projection and having the [EPSG code of 25835](https://epsg.io/25835)) so that the car can be positioned on the map.
+The data is saved in the rosbag file in the `common` package. The GNSS log is recorded in the `/novatel/oem7/inspva` topic. This topic includes two kinds of data:
+* **location**, given as latitude, longitude and height,
+* **velocity**, given in directions of north, east and up.
 
-EPSG abbreviation originated from the European Petroleum Survey Group in 1985 but has transformed into a public registry of geodetic datums and spatial reference systems.
-
-GNSS is an absolute positioning method - we get the vehicle coordinates straight from the GNSS measurements. In our case, it is not in the correct coordinate system, and our localizer does the coordinate transformation. Localizer could also use lidar(s) or camera(s) for localization - then we would have a localizer node that would do a lot of different tasks. In the case of lidar, it is very common to have a lidar point cloud map ready, and lidar measurements will be relative to this point cloud map. The localizer would then find a location for the lidar so that the existing point cloud map and the lidar measurements (lidar scan) match. This is also referred to as relative localization.
-
+The task of localizer in this case is very simple - it must take the latitude and longitude, coordinates in [WGS84 system](https://en.wikipedia.org/wiki/World_Geodetic_System), and convert them to the map coordinate system. For the map we are using the UTM (Universal Transverse Mercator) zone 35N projection. Using projection to [Cartesian coordinate system](https://en.wikipedia.org/wiki/Cartesian_coordinate_system) is common in processing geospatial data, because it makes calculating distances between points and other transformations much easier.
 
 #### Additionally provided:
 
-##### in `practice_2`
-* `/nodes/planning/waypoint_saver.py` - node for waypoint saving
-* `/launch/practice_2.launch` - a launch file that should run without errors at the end of the practice using your localizer node and also launch waypoint recording
-* `/rviz/practice_2.rviz` - rviz config file for visualizing the topics. Rviz is a 3D visualization tool for ROS.
-* `/config/localization.yaml` - some parameter values for localizer. Instead of using launch file to set parameter values a file can be loaded where the parameters are listed.
-
 ##### in `common`
-* `/common/data/bags/ride_14_minimal.bag` - filtered rosbag that contains GNSS log with latitude and longitude data
-* `/common/data/trajectories` - folder for waypoint files and one example file
+* `data/bags/ride_14_minimal.bag` - filtered rosbag that contains GNSS log
+* `data/trajectories` - folder for waypoint files and one example file
 
+##### in `practice_2`
+* `nodes/planning/waypoint_saver.py` - node for waypoint saving
+* `launch/practice_2.launch` - a launch file that should run without errors at the end of the practice using your localizer node and also launch waypoint recording
+* `rviz/practice_2.rviz` - RViz config file for visualizing the topics. RViz is a 3D visualization tool for ROS.
+* `config/localization.yaml` - some parameter values for localizer. Instead of using launch file to set parameter values a file can be loaded where the parameters are listed.
 
 ### Expected outcome
 
 * Understanding what does it mean to localize a car on the map
 * Your localizer node will convert the measured location from the GNSS system to map coordinates
-* As a result, we are able to save waypoint coordinates into a csv file
+* As a result, we are able to recorde a trace of the car into a csv file and can make the car follow that trace in the next practice
 
 
 ## 1. Create localizer node
 
-We will create a [subscriber node](https://wiki.ros.org/ROS/Tutorials/WritingPublisherSubscriber%28python%29#rospy_tutorials.2FTutorials.2FWritingPublisherSubscriber.Writing_the_Subscriber_Node). The node will get access to the data when we will [play a rosbag](https://wiki.ros.org/rosbag/Commandline#rosbag_play). Rosbag is a recorded dataset, and when playing the rosbag, all the recorded topics are published according to the recorded timestamps; that is how our subscriber will get access to necessary GNSS data.
+We will create a [subscriber node](https://wiki.ros.org/ROS/Tutorials/WritingPublisherSubscriber%28python%29#rospy_tutorials.2FTutorials.2FWritingPublisherSubscriber.Writing_the_Subscriber_Node). The node will get access to the data when we will [play a rosbag](https://wiki.ros.org/rosbag/Commandline#rosbag_play).
 
 ##### Instructions
 1. Create a new file called `localizer.py` inside `~/autoware_mini_practice/src/practice_2/nodes/localization`
@@ -47,6 +43,7 @@ We will create a [subscriber node](https://wiki.ros.org/ROS/Tutorials/WritingPub
       - organize the code in meaningful groups in class init method 
       - other code should be inside callbacks and functions
    - Go through the necessary imports and note different message types
+   - Notice that this time we are using `/` prefix for parameter names. This is because these parameters can be potentially used also from other nodes. Previously we used `~` prefix that denotes node private parameters. More information on resolving parameter names can be found [here](http://wiki.ros.org/Names#Resolving).
    - See how subscribers and publishers are created
 3. There is an empty callback: `transform_coordinates` - replace `pass` with printing the coordinates `print(msg.latitude, msg.longitude)`
 
@@ -96,33 +93,6 @@ if __name__ == '__main__':
     node.run()
 ```
 
-##### Getting the parameter values
-
-A very brief look into getting the parameter values in ROS. We are not explicitly addressing this feature in ROS, but we need to draw your attention here so you can pay attention and notice it in further practices. Let's start with an example of how to get the parameter value using `rospy.get_param` and the `undulation` parameter.
-```
-self.undulation = rospy.get_param('undulation')
-self.undulation = rospy.get_param('~undulation')
-self.undulation = rospy.get_param('/undulation')
-```
-
-The parameter name is `undulation`, and there are three options to get it using different prefixes:
-1. Nothing in front defines **relative** naming. Optionally, there can be additional namespace (see below small explanation about namespace) names in front of it, like `namespace/undulation`. If the node is launched in some other namespace, its name is added in front.
-2. `~` in front is a way to say that the parameter is **private**. Currently, you launch the node `localizer.py` that will have the name `localizer`, so the parameter will also get this name in front and the parameter searched from the ROS parameter server would be `localizer/undulation`
-3. `/` - makes the parameter name **absolute**. It means that it doesn't matter in which namespace you launch the node or what the node name is; it will stay `/undulation`, and that will be looked for in the ROS parameter server.
-
-Namespace is a way of grouping nodes, topics and parameters into logical groups. It will not be covered very thoroughly here. You can imagine the same `localizer` node being used at the same time with two different robots. With the first robot, we can use the namespace `robot_1`, and with the second, we can use `robot_2`. In the localizer node we might read in the parameters as follows:
-
-```
-utm_origin = rospy.get_param('/utm_origin')
-antenna_height = rospy.get_param('antenna_height')
-```
-The result will be that:
-* `/utm_origin` will stay the same because of its absolute name. And it is logical since the origin is the same value for both robots.
-* `antenna_height` will become `robot_1/antenna_height` and `robot_2/antenna_height`, and they can now have different values, and at the same time, exactly the same node was run.
-
-More on [resolving the parameter names](https://wiki.ros.org/Names#Resolving).
-
-
 ##### Validation
 * As a reminder lets run first all the nodes manually
 * In terminal 1: `roscore`
@@ -143,11 +113,7 @@ latitude:  58.377320343735214  longitude:  26.730933999096404
 
 ## 2. Convert coordinates
 
-Latitude and longitude are geographic coordinates with the coordinate system name "WGS84". and we saw them being printed out in the previous task.
-
-Our localizer needs to transform these coordinates to UTM zone 35N ([epsg code: 25835](https://epsg.io/25835)), because the map we are using has these coordinates. Additionally, we have defined a custom origin point near the Delta building that needs to be subtracted from transformed coordinates.
-
-For coordinate transformations, we use the [pyproj](https://pyproj4.github.io/pyproj/stable/) library.
+Latitude and longitude printed out in the previous task are geographic coordinates in [World Geodetic System](https://en.wikipedia.org/wiki/World_Geodetic_System) (with [EPSG code 4326](https://epsg.io/4326)), or more commonly referred as GPS coordinates. Our localizer needs to transform these coordinates to UTM zone 35N projection ([with EPSG code 25835](https://epsg.io/25835)) as used for the map. Additionally, we have defined a custom origin point near the Delta building that needs to be subtracted from transformed coordinates. For coordinate transformations, we use the [pyproj](https://pyproj4.github.io/pyproj/stable/) library.
 
 ##### Instructions
 1. Create the coordinate [Transformer](https://pyproj4.github.io/pyproj/stable/api/transformer.html) using the defined [CRS](https://pyproj4.github.io/pyproj/stable/api/crs/crs.html) objects.
@@ -178,29 +144,18 @@ x:  269.1329317893251 y:  -894.4622026216239
 
 As a next step, we must publish transformed coordinates to a `current_pose` topic. The message type for this topic is [PoseStamped](https://docs.ros.org/en/melodic/api/geometry_msgs/html/msg/PoseStamped.html). When you look at the message definition, it contains:
    * [Header message](https://docs.ros.org/en/noetic/api/std_msgs/html/msg/Header.html) that has
-      * seq - sequence id, int number that is increasing with every sent message
-      * stamp - contains the timestamp of the message of type **time**
-      * frame_id - reference frame name. Since we will be sending coordinates in a map frame, we need to add a `"map"` there. Reference frames will be explained more in future practices.
+      * `seq` - sequence id, int number that is increasing with every sent message
+      * `stamp` - contains the timestamp of the message of type **time**
+      * `frame_id` - reference frame name. Right now we will put just `map` here, reference frames will be explained more in future practices.
    * [Pose message](https://docs.ros.org/en/melodic/api/geometry_msgs/html/msg/Pose.html) consists of two parts, each referring yet to another message type:
       * `position` (message type [geometry_msgs/Point](https://docs.ros.org/en/melodic/api/geometry_msgs/html/msg/Point.html))
-      * `orientation` (message type [geometry_msgs/Quaternion](https://docs.ros.org/en/melodic/api/geometry_msgs/html/msg/Quaternion.html))
-
-Let's look separately how we can get the `position` and `orientation`.
-
-##### `position`
-* `position` is a [Point](https://docs.ros.org/en/melodic/api/geometry_msgs/html/msg/Point.html) message
-   - `position.x` and `position.y` are the transformed coordinates with subtracted origin coordinates
-   - for `position.z` we need to take `msg.height` and subtract `undulation` (parameter)
-
-##### `orientation`
-* `orientation` is [Quaternion](https://docs.ros.org/en/melodic/api/geometry_msgs/html/msg/Quaternion.html) message and [quaternion](https://en.wikipedia.org/wiki/Quaternion) is a way to represent angles with respect to coordinate axis aka orientation.
-* From INSPVA we have azimuth - angle from North in clockwise direction
-* We will be ignoring the car's roll and pitch angles currently
-* Essentially, we need to convert the azimuth angle to Quaternion, and then we can assign it as `orientation` in the PoseStamped message. There are a couple of things we need to do to achive that:
-   - INSPVA azimuth is in the WGS84 system (ellipsoidal system and the North direction is always along the meridian pointing to the North); we need to correct it for the UTM zone 35N coordinate system (cartesian coordinates on the planar surface where the North direction is taken from the central meridian).
-   - The correction depends on location and is also known as meridian convergence. This can be found using the following code line with [get_factors](https://pyproj4.github.io/pyproj/stable/api/proj.html#pyproj.Proj.get_factors) method (see the example code line below)
-   - Next thing is we need to convert angle from azimuth (**clockwise (CW)** angle from North - **y axis**) to **counterclocḱwise (CCW)** angle from **x-axis** (this is how angles are usually represented in ROS). Let's call this angle **yaw**. For that, the function convert_azimuth_to_yaw() is provided in the code section
-   - And finally, we can convert the angle to Quaternion; you can use the `quaternion_from_euler` for that
+         - `position.x` and `position.y` are the transformed coordinates with subtracted origin coordinates
+         - for `position.z` we need to take `msg.height` and subtract `undulation` (parameter)
+      * `orientation` (message type [geometry_msgs/Quaternion](https://docs.ros.org/en/melodic/api/geometry_msgs/html/msg/Quaternion.html)). Quaternions are a way to represent orientations in 3D space that have [many favorable properties](https://en.wikipedia.org/wiki/Quaternions_and_spatial_rotation).
+         * From GNSS topic we have azimuth - angle from north in clockwise direction (we will be ignoring the car's roll and pitch angles currently). Essentially, we need to convert the azimuth angle to quaternion.
+         * GNSS azimuth is in the WGS84 system, we need to correct it for the UTM zone 35N projection first. The correction depends on location and is also known as [meridian convergence](https://en.wikipedia.org/wiki/Transverse_Mercator_projection#Convergence). This can be found with [get_factors](https://pyproj4.github.io/pyproj/stable/api/proj.html#pyproj.Proj.get_factors) method, see the example code below.
+         * Next thing is we need to convert angle from **clockwise (CW)** angle from **y axis** (north) to **counterclocḱwise (CCW)** angle from **x-axis** (this is how angles are usually represented in ROS). Let's call this angle **yaw**. For that, the function `convert_azimuth_to_yaw()` is provided in the code below.
+         * And finally, we need to convert the angle to quaternion; you can use the `quaternion_from_euler` for that.
 
 ```
 # calculate azimuth correction
@@ -222,7 +177,7 @@ def convert_azimuth_to_yaw(azimuth):
 
     return yaw
 
-# Convert yaw 
+# Convert yaw to quaternion
 x, y, z, w = quaternion_from_euler(0, 0, yaw)
 orientation = Quaternion(x, y, z, w)
 ```
@@ -272,17 +227,17 @@ pose:
 
 ## 4. Publish `current_velocity`
 
-Velocity is represented in `/novatel/oem7/inspva` messages with three components: `north_velocity`, `east_velocity` and `up_velocity`. We will use only the North and East components and take their norm.
+Velocity is represented in `/novatel/oem7/inspva` messages with three components: `north_velocity`, `east_velocity` and `up_velocity`. We will use only the north and east components and take their norm.
 
-Message type in `current_velocity` is [TwistStamped](https://docs.ros.org/en/melodic/api/geometry_msgs/html/msg/TwistStamped.html), and we are going to write the calculated velocity to `message.twist.linear.x` and say that `message.header.frame_id` equals to `base_link`. `base_link` is a common way to name the robots/cars main reference frame where the x axis points forward. That is why we are calculating the norm and writing it only to `twist.linear.x`.
+Message type in `current_velocity` is [TwistStamped](https://docs.ros.org/en/melodic/api/geometry_msgs/html/msg/TwistStamped.html), and we are going to write the calculated velocity to `twist.linear.x` and say that `header.frame_id` equals to `base_link`. `base_link` is a common way to name the robot's/car's main reference frame where the x axis points forward. That is why we are calculating the norm and writing it only to `twist.linear.x`.
 
 ##### Instruction
 1. Calculate the velocity as norm of the `north_velocity` and `east_velocity`
 2. Create TwistStamped message
 3. Create the message 
    * Set frame as `"base_link"` 
-   * take a time stamp from INSPVA message
-   * assign velocity to `msg.twist.linear.x`
+   * Take a time stamp from GNSS message
+   * Assign velocity to `msg.twist.linear.x`
 4. Publish to `current_velocity`
 
 ##### Validation
@@ -312,14 +267,15 @@ twist:
 
 ## 5. Create and publish transform
 
-* As a last thing, our localizer needs to publish the transform between the `map` frame and the `base_link` frame. For that, you need to use [TransformBroadcaster() from tf2_ros](https://wiki.ros.org/tf2/Tutorials/Writing%20a%20tf2%20broadcaster%20%28Python%29) library. That is already imported and created.
-* It uses message type: [geometry_msgs/TransformStamped](https://docs.ros.org/en/melodic/api/geometry_msgs/html/msg/TransformStamped.html)
+As a last thing, our localizer needs to publish the transform between the `map` frame and the `base_link` frame. This allows later for conversion of map coordinates (e.g. traffic light locations) to vehicle local coordinates (e.g. in camera reference frame).
+
+For that, you need to use [TransformBroadcaster() from tf2_ros](https://wiki.ros.org/tf2/Tutorials/Writing%20a%20tf2%20broadcaster%20%28Python%29) library. That is already imported and created. It uses message type: [geometry_msgs/TransformStamped](https://docs.ros.org/en/melodic/api/geometry_msgs/html/msg/TransformStamped.html)
 
 1. Create the TransformStamped message
    - `frame_id` is `map`
    - `child_frame_id` should be `base_link`
-   - timestamp should come from the INSPVA message
-2. Transform consists of translation and rotation that are basically current_pose's position and orientation
+   - timestamp should come from the GNSS message
+2. Transform consists of translation and rotation that are basically current_pose's position and orientation. Basically to convert (0, 0) in `base_link` frame to `map` frame, you just need to add the current position.
 3. Use `sendTransform()` to publish the transform (TransformStamped message)
 
 
