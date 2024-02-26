@@ -64,9 +64,9 @@ class Localizer:
     def __init__(self):
 
         # Parameters
-        self.undulation = rospy.get_param('/undulation')
-        utm_origin_lat = rospy.get_param('/utm_origin_lat')
-        utm_origin_lon = rospy.get_param('/utm_origin_lon')
+        # self.undulation = rospy.get_param('/undulation')
+        # utm_origin_lat = rospy.get_param('/utm_origin_lat')
+        # utm_origin_lon = rospy.get_param('/utm_origin_lon')
 
         # Internal variables
         self.crs_wgs84 = CRS.from_epsg(4326)
@@ -106,6 +106,7 @@ latitude:  58.377320343735214  longitude:  26.730933999096404
 ...
 ```
 * Close all runnning processes in terminals
+* Inside localizer node in parameters section uncomment getting the three parameter values (`undulation`, `utm_origin_lat`, `utm_origin_lon`)
 * run `roslaunch practice_2 practice_2.launch`
    - we should see the same coordinates printed out in the console
    - all necessary things like playing the rosbag, running the localizer node, and opening rviz with visualization are included in the launch file.
@@ -153,7 +154,7 @@ As a next step, we must publish transformed coordinates to a `current_pose` topi
          - for `position.z` we need to take `msg.height` and subtract `undulation` (parameter)
       * `orientation` (message type [geometry_msgs/Quaternion](https://docs.ros.org/en/melodic/api/geometry_msgs/html/msg/Quaternion.html)). Quaternions are a way to represent orientations in 3D space that have [many favorable properties](https://en.wikipedia.org/wiki/Quaternions_and_spatial_rotation).
          * From GNSS topic we have azimuth - angle from north in clockwise direction (we will be ignoring the car's roll and pitch angles currently). Essentially, we need to convert the azimuth angle to quaternion.
-         * GNSS azimuth is in the WGS84 system, we need to correct it for the UTM zone 35N projection first. The correction depends on location and is also known as [meridian convergence](https://en.wikipedia.org/wiki/Transverse_Mercator_projection#Convergence). This can be found with [get_factors](https://pyproj4.github.io/pyproj/stable/api/proj.html#pyproj.Proj.get_factors) method, see the example code below.
+         * GNSS azimuth is in the WGS84 system, we need to correct it for the UTM zone 35N projection first. The correction depends on location and is also known as [meridian convergence](https://en.wikipedia.org/wiki/Transverse_Mercator_projection#Convergence). This can be found with [get_factors](https://pyproj4.github.io/pyproj/stable/api/proj.html#pyproj.Proj.get_factors) method, see the example code below. The correction should be subtracted from azimuth angle coming from the message.
          * Next thing is we need to convert angle from **clockwise (CW)** angle from **y axis** (north) to **counterclocḱwise (CCW)** angle from **x-axis** (this is how angles are usually represented in ROS). Let's call this angle **yaw**. For that, the function `convert_azimuth_to_yaw()` is provided in the code below.
          * And finally, we need to convert the angle to quaternion; you can use the `quaternion_from_euler` for that.
 
