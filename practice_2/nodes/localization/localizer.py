@@ -52,83 +52,74 @@ class Localizer:
         self.transformer = Transformer.from_crs(self.crs_wgs84, self.crs_utm)
         self.origin_x, self.origin_y = self.transformer.transform(utm_origin_lat, utm_origin_lon)
 
-        # Create PoseStamped msg to publish current_pose
-        self.current_pose_msg = PoseStamped()
-
-        # Create TwistStamped msg to publish current_velocity
-        self.current_velocity_msg = TwistStamped()
-
-        # Create a transform message
-        self.t = TransformStamped()
-
 
     def transform_coordinates(self, msg):
 
         current_x, current_y = self.transformer.transform(msg.latitude, msg.longitude)
-
         pos_x = current_x - self.origin_x
-        pos_y = current_y - self.origin_y
-
-        print("Relative pose in map frame:")
-        print(f"x: {pos_x}, y: {pos_y}")
+        pos_y = current_y - self.origin_y        
 
         # calculate azimuth correction
-        azimuth_correction = self.utm_projection.get_factors(msg.longitude, msg.latitude).meridian_convergence
-        print(f"azimuth correction: {azimuth_correction}")
+        azimuth_correction = self.utm_projection.get_factors(msg.longitude, msg.latitude).meridian_convergence        
 
-        azimuth_corrected = msg.azimuth + azimuth_correction
+        azimuth_corrected = msg.azimuth - azimuth_correction
         azimuth_rad = np.deg2rad(azimuth_corrected)
 
         yaw = convert_azimuth_to_yaw(azimuth_rad)
         
         # Convert yaw to quaternion
         x, y, z, w = quaternion_from_euler(0, 0, yaw)
-        orientation = Quaternion(x, y, z, w)
 
-        print("Orientation:")
-        print(orientation)
+        ###########################################################################################
 
-        # Publish current position
-        self.current_pose_msg.header.stamp = msg.header.stamp
-        self.current_pose_msg.header.frame_id = "map"
-        self.current_pose_msg.pose.position.x = pos_x
-        self.current_pose_msg.pose.position.y = pos_y
-        self.current_pose_msg.pose.position.z = msg.height
-        self.current_pose_msg.pose.orientation.x = x
-        self.current_pose_msg.pose.orientation.y = y
-        self.current_pose_msg.pose.orientation.z = z
-        self.current_pose_msg.pose.orientation.w = w
+        # Create PoseStamped msg to publish current_pose
+        current_pose_msg = PoseStamped()        
+        current_pose_msg.header.stamp = msg.header.stamp
+        current_pose_msg.header.frame_id = "map"
+        current_pose_msg.pose.position.x = pos_x
+        current_pose_msg.pose.position.y = pos_y
+        current_pose_msg.pose.position.z = msg.height
+        current_pose_msg.pose.orientation.x = x
+        current_pose_msg.pose.orientation.y = y
+        current_pose_msg.pose.orientation.z = z
+        current_pose_msg.pose.orientation.w = w
 
-        self.current_pose_pub.publish(self.current_pose_msg)
+        self.current_pose_pub.publish(current_pose_msg)
 
-        
-        # Compute current velocity and publish
+        ###########################################################################################
+
+        ###########################################################################################
+                
+        # Compute current velocity 
         current_vel = np.sqrt((msg.north_velocity)**2 + (msg.east_velocity)**2)
 
-        self.current_velocity_msg.header.stamp = msg.header.stamp
-        self.current_velocity_msg.header.frame_id = "base_link"
-        self.current_velocity_msg.twist.linear.x = current_vel
+        # Create TwistStamped msg to publish current_velocity
+        current_velocity_msg = TwistStamped()
+        current_velocity_msg.header.stamp = msg.header.stamp
+        current_velocity_msg.header.frame_id = "base_link"
+        current_velocity_msg.twist.linear.x = current_vel
 
-        self.current_velocity_pub.publish(self.current_velocity_msg)
+        self.current_velocity_pub.publish(current_velocity_msg)
 
+        ###########################################################################################
+
+        ###########################################################################################
         
-        # Publish transform message
-        self.t.header.stamp = msg.header.stamp
-        self.t.header.frame_id = "map"
-        self.t.child_frame_id = "base_link"
-        self.t.transform.translation.x = pos_x
-        self.t.transform.translation.y = pos_y
-        self.t.transform.rotation.x = x
-        self.t.transform.rotation.y = y
-        self.t.transform.rotation.z = z
-        self.t.transform.rotation.w = w
+         # Create a transform message to broadcast the transform
+        t = TransformStamped()        
+        t.header.stamp = msg.header.stamp
+        t.header.frame_id = "map"
+        t.child_frame_id = "base_link"
+        t.transform.translation.x = pos_x
+        t.transform.translation.y = pos_y
+        t.transform.rotation.x = x
+        t.transform.rotation.y = y
+        t.transform.rotation.z = z
+        t.transform.rotation.w = w
 
-        self.br.sendTransform(self.t)
+        self.br.sendTransform(t)
 
-        print("------------------------------------------------------------------------------------------------")
-
-
-
+        ###########################################################################################
 
     def run(self):
         rospy.spin()
