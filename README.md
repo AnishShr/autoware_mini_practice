@@ -39,7 +39,25 @@ This repo serves as an introduction to Autoware Mini. There are 8 practices that
 
 ![clone_ssh](/doc/cloning_ssh.png)
 
-#### Git commands
+#### Sync your GitHub repo with upstream
+* You should regularily sync your fork repo with upstream repo because of updates and fixes
+* The best time is to do it before starting the next practice
+* You just need to press **Sync Fork** and then **Update branch**
+
+![sync_upstream](doc/sync_upstream.png)
+
+
+#### Adding support for git-lfs
+* Because of some large bag files we are using [git-lfs](https://git-lfs.com/) in the repo
+* You need to set it up also in your repo with following commands:
+   * `sudo apt install git-lfs`
+   * `git lfs install` - this you need to run inside your cloned repo
+* If you cloned the repo previously without having git-lfs initialized you might need to additionally first remove the bag files and then checkout them
+   * `rm common/data/bags/*.bag`
+   * `git checkout common/data/bags`
+
+
+#### Basic git commands
 
 * git commands you should be familiar with:
    * `git add`

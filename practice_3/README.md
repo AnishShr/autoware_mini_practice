@@ -27,10 +27,10 @@ More about Pure Pursuit:
 
 ## 1. Preparation
 
-1. As a reminder, let us build the workspace. It is not necessary here since we are adding a Python node that does not need building. If we were using code in C or C++, we would need to build the workspace and source it after including the source code of the new node.
+1. As a reminder, let us build the workspace. It is not necessary here since we are adding a Python node that does not need building. If we were using code in C or C++, we would need to build the workspace and source it after including the source code of the new node or after every code change.
 2. Go to catkin_ws folder: `cd ~/autoware_mini_practice`
-3. `catkin clean` - will clean the workspace. Removes `build` and `devel` folders. It is suggested when nodes are removed or replaced, but again, it is crucial when dealing with code that needs to be built. This is not the case with Python code, so we can see the code changes affecting the behaviour without rebuilding the workspace.
-4. `ource /opt/ros/noetic/setup.bash` - source only ROS. All other ROS packages will be unsourced. It might be necessary to do this if you already have some packages sourced in the terminal (for example, `autoware_mini`). If you do `catkin build` with `autoware_mini` sourced it will create the [chained workspace](https://wiki.ros.org/catkin/Tutorials/workspace_overlaying#Chaining_catkin_workspaces)
+3. `catkin clean` - will clean the workspace. Removes `build` and `devel` folders. It is suggested when nodes are removed or replaced.
+4. Optional: `source /opt/ros/noetic/setup.bash` - source only ROS. All other ROS packages will be unsourced. It might be necessary to do this if you already have some packages sourced in the terminal (for example, `autoware_mini`). If you do `catkin build` with `autoware_mini` sourced it will create a [chained workspace](https://wiki.ros.org/catkin/Tutorials/workspace_overlaying#Chaining_catkin_workspaces).
 5. Build workspace: `catkin build`
 6. Source your workspace: `source devel/setup.bash`
 
@@ -65,18 +65,17 @@ class PurePursuitFollower:
 
         # Parameters
 
+        # Publishers
+
         # Subscribers
         rospy.Subscriber('path', Lane, self.path_callback, queue_size=1)
         rospy.Subscriber('/localization/current_pose', PoseStamped, self.current_pose_callback, queue_size=1)
-
-        # Publishers
 
     def path_callback(self, msg):
         # TODO
 
     def current_pose_callback(self, msg):
         # TODO
-
 
     def run(self):
         rospy.spin()
@@ -89,10 +88,9 @@ if __name__ == '__main__':
 
 3. Two subscribers are already created. Add some content in the callbacks so that it won't give an error when you run it (`pass` or some kind of helpful printouts)
    - for example, in `current_pose_callback`, you could print out coordinates
-4. Add the shebang line and give execution rights to your node
+4. Add the [shebang line](https://en.wikipedia.org/wiki/Shebang_(Unix)) and [give execution rights](https://kb.iu.edu/d/abdb) to your node
 5. Modify the `practice_3.launch` file by adding the launching of the node `pure_pursuit_follower`
-   - Inside the node tags, you will see [remap](https://wiki.ros.org/roslaunch/XML/remap) from topic `path` to `global_path`
-   - It is because `waypoint_loader` is publishing its path to the topic `global_path`, but our follower subscribes to the general `path`. In this case, we add topic remap; in other use cases, the same follower node might need to subscribe to `local_path`. Then, we would add a remap to `local_path`. So, the node itself is more general and can handle both. That is why we use the more general name inside the node, and special cases are solved using remaps.
+   - Inside the node tags, you will see [remap](https://wiki.ros.org/roslaunch/XML/remap) from topic `path` to `global_path`. It is because `waypoint_loader` is publishing its path to the topic `global_path`, but our follower subscribes to the general `path`. In this case, we add topic remap; in other use cases, the same follower node might need to subscribe to `local_path`. Then, we would add a remap to `local_path`. So, the node itself is more general and can handle both. That is why we use the more general name inside the node, and special cases are solved using remaps.
 
 ```
 <!-- Waypoint follower -->
@@ -105,8 +103,9 @@ if __name__ == '__main__':
 #### Validation
 * run `roslaunch practice_3 practice_3.launch`
 * The path should be visualized, and no error messages in the console
-* If you are printing out `current_pose` see if the output is logical (starting with `x: 0.0, y: 0.0`), and when placed close to the path start, you should see something close to the following: `x: 266.7159118652344, y: -894.0006713867188`
-* There should also be a console output message from the bicycle simulator node
+* If you are printing out `current_pose` see if the output is logical (starting with `x: 0.0, y: 0.0`), and when placed near to the path start, coordinates should be close to the following: `x: 266.7159118652344, y: -894.0006713867188`
+* There should also be a console output message from the bicycle simulator node when setting the 2D Pose Estimate:
+
 
 ```
 [INFO] [1705322635.856730]: /bicycle_simulation - initial position (266.188538, -893.716125, 0.000000) orientation (0.000000, 0.000000, -0.984878, 0.173251) in map frame
@@ -126,14 +125,14 @@ if __name__ == '__main__':
 `pure_pursuit_follower` must send a vehicle command (contains speed and steering angle). It must be picked up by the simulator (currently `bicycle_simulator`) that will calculate where the car will end up within the next iteration (it lasts a fixed time) given the current position, speed, car orientation and the vehicle command. After doing these calculations, the simulator gives us new position, orientation and speed (In real situations, it would be the task of a localizer). New updated values go again into the `pure_pursuit_follower` to recalculate a new steering angle and speed corresponding to the updated location, orientation and speed. So, there has to be a cycle between these nodes.
 
 We need to publish the vehicle command from the `pure_pursuit_follower`, and the `bicycle_simlator` node will subscribe to it. Vehicle command consists of two parts:
-* longitudinal control - speed
 * lateral control - steering angle
+* longitudinal control - speed
 
 In this step, we will publish constant values to confirm that the ego vehicle will start to drive and that this cycle between the simulator node and the follower node works.
 
 ##### Instructions
 1. Create Publisher for the vehicle command topic `/control/vehicle_cmd`, message type [autoware_msg/VehicleCmd](https://github.com/streetdrone-home/Autoware/blob/master/ros/src/msgs/autoware_msgs/msg/VehicleCmd.msg)
-2. Create the message and fill in the speed (`linear_velocity`) and steering angle with some constant values
+2. Create the message and fill in the `linear_velocity` (speed) and `steering_angle` with some constant values
 
 ```
 vehicle_cmd = VehicleCmd()
@@ -173,23 +172,27 @@ Image below from: https://www.shuffleai.blog/blog/Three_Methods_of_Vehicle_Later
 
 ![pure_pursuit_image](doc/pure_pursuit_img.png)
 
-The main calculation for lateral control will happen in `current_pose_callback` because whenever we get a new update for our location and orientation, we want to calculate a new steering angle and speed immediately. We need to have the trajectory (global path, local path or sometimes referred to only as a path) and ego vehicle location (current pose) to do the calculations.
+**Important Note:** On the image you can see 2 terms, but here we use the terms differently:
+* *Trajectory* - means the path we want to follow. In this practice we use term **path** to represent what is ment by the *trajectory* on the image. It might come from loading the waypoints, planning the global path (practice 4) on the map or extracting the local path from the global path.
+* *Path* - can be interpreted as **actual path** the ego vehicle takes, it will not align perfectly with the path we want ego vehicle to follow. We don't refer much to the actual path in this practice, but it is important to understand that there is this misalignment between them.
 
-The distance from the trajectory start will represent the ego vehicle location on the trajectory. We can get it using shapely [project](https://shapely.readthedocs.io/en/stable/reference/shapely.LineString.html#shapely.LineString.project). And the coordinates for that point can be calculated using shapely [interpolate](https://shapely.readthedocs.io/en/stable/reference/shapely.LineString.html#shapely.LineString.interpolate).
+The main calculation for lateral control will happen in `current_pose_callback` because whenever we get a new update for our location and orientation, we immediately want to calculate a new steering angle and speed. We need to have the path and ego vehicle location (current pose) to do the calculations.
+
+The distance from the path start will represent the ego vehicle location on the path. We can use shapely [project](https://shapely.readthedocs.io/en/stable/reference/shapely.LineString.html#shapely.LineString.project) and [interpolate](https://shapely.readthedocs.io/en/stable/reference/shapely.LineString.html#shapely.LineString.interpolate) here:
 * `project` - will return distance of the ego vehicle from path start (first projects car to the closest point on the path)
 * `interpolate` - returns a shapely Point within the distance along the path
 
 
 ##### Instructions
 
-1. First, we need a path in shapely Linestring format to find the ego vehicle location on that same path, find lookahead distance and lookahead point, etc... Add the following code to the correct places:
+1. First, we need a path in shapely Linestring format. Add the following code to the correct places:
 
 ```
 from shapely.geometry import LineString, Point
 from shapely import prepare, distance
 
 # convert waypoints to shapely linestring
-path_linestring = LineString(np.array([(w.pose.pose.position.x, w.pose.pose.position.y) for w in msg.waypoints]))
+path_linestring = LineString([(w.pose.pose.position.x, w.pose.pose.position.y) for w in msg.waypoints])
 # prepare path - creates spatial tree, making the spatial queries more efficient
 prepare(path_linestring)
 ```
@@ -198,15 +201,15 @@ prepare(path_linestring)
 3. In the current_pose_callback, add the calculation of ego distance from the path start. We can interpret it as the relative location on the path. And it will be a reference point for our following calculations.
    - First, we convert the ego vehicle location to shapely Point.
    - Then, find the distance using the `project` function from shapely.
-   - The ego vehicle itself will not be ideally on the trajectory, so this distance will represent the location on the path that is closest to the ego vehicle (closest point on path) 
+   - The ego vehicle itself will not be ideally on the path (path vs actual path), so this distance will represent the location on the path that is closest to the ego vehicle (closest point on path) 
 
 ```
-current_pose = Point(np.array([msg.pose.position.x, msg.pose.position.y]))
+current_pose = Point([msg.pose.position.x, msg.pose.position.y])
 d_ego_from_path_start = self.path_linstring.project(current_pose)
 ``` 
 
 4. Remove previous printouts and add another one printing out `d_ego_from_path_start`
-5. You can test running the `practice_3.launch` and occasionally see the error in the console log (see below) - you can try launching it multiple times, and it should, at some point, occur. It appears when the path_callback does not manage to assign value to `self.path_linestring` (you might have named it differently), and it is already being used in `current_pose_callback`. Fix it by checking if the value is not set the `current_pose_callback` should return.
+5. You can test running the `practice_3.launch` and occasionally see the error in the console log (see below). It appears when the path_callback does not manage to assign value to `self.path_linestring` (you might have named it differently), and it is already being used in `current_pose_callback`. Fix it by checking if the value is not set the `current_pose_callback` should return.
 
 ```
 d_ego_from_path_start = self.path_linestring.project(current_pose)
@@ -223,17 +226,17 @@ AttributeError: 'NoneType' object has no attribute 'project'
 
 The following steps are to get the additional parameters necessary to calculate the `lookahead_point` and, finally, the steering angle.
 
-A modified drawing with added heading angle and steering angles:
+A modified drawing with added heading angle and steering angle:
 
 ![pure_pursuit_image](doc/pure_pursuit_additions.png)
 
 ##### Instructions
 1. Read in parameter values:
-   - `lookahead_distance` - comes from the launch file. This parameter should be used to find lookahead point location on the trajectory.
+   - `lookahead_distance` - comes from the launch file. This parameter should be used to find lookahead point location on the path.
       - It can't be directly used as `ld` in the above image, see point 4.
    - `wheel_base` - comes from `/config/vehicle.yaml` file. Important parameter for steering angle calculation
 2. Calculate the current heading angle from `current_pose.pose.orientation`. Use `euler_from_quaternion` from `tf.transformations` to get the angle.
-   - `euler_from_quaternion` returns euler angles and they are in the order of roll, pitch and yaw. Yaw angle is rotation around z-axis with 0 pointing along the x-axis, so we cam use this as heading. 
+   - `euler_from_quaternion` returns euler angles and they are in the order of roll, pitch and yaw. Yaw angle is rotation around z-axis with 0 pointing along the x-axis, so we can use this as heading. 
 3. Calculate the lookahead point and then the heading; the latter can be calculated from point coordinates using the `arctan2` function.
 4. Recalculate the lookahead distance - `ld`. It needs to be the direct distance between 2 points, and therefore, it will not be precisely the value of the `lookahead_distance` parameter. It can be calculated using shapley function `distance` that takes 2 Points as inputs.
 
@@ -266,7 +269,7 @@ Examples of using the `project`, `interpolate` and `distance` functions from `sh
 5.0
 
 ```
-5. Calculate the steering angle using the formula below and add it to the vehicle command.
+5. Calculate the steering angle using the formula below and use the value to replace the `steering_angle` in vehicle command.
 
 ![pure_pursuit_formula](doc/pure_pursuit_formula.png)
 
@@ -279,21 +282,21 @@ Examples of using the `project`, `interpolate` and `distance` functions from `sh
 ##### Validation
 * run `roslaunch practice_3 practice_3.launch`
 * place the car close to the path. It should start following the path and do the correct turns.
-* You can experiment by placing the start point in different distances and directions from the trajectory
+* You can experiment by placing the start point in different distances and directions from the path
 
 
 ## 6. Implement longitudinal control
 
-For longitudinal control, we need to take the speed from the path. We have recorded waypoints, so each waypoint has the speed attribute, and the result should be the same speed profile as during the waypoint recording. When the path comes from the map, then the waypoints will have maximum speed limit or reference speeds (convenient driving speed at that location).
+For longitudinal control, we need to take the speed from the path. We have recorded waypoints, so each waypoint has the speed attribute, and the result should be the same speed profile as during the waypoint recording. When the path comes from the map, then the waypoints will have maximum speed limit or reference speeds (convenient driving speed at that location) from the map data.
 
-Speed adjustment in turns (sharper turns need smaller speed) can be additionally added to the global planner or some specialized node that will smooth the speed profile for the path. Reacting to obstacles (slowing down, bringing to a stop) will be the task for the local planner. They both produce a path - an array of waypoints - and the followers' behaviour is the same: use waypoints for speed.
+Speed adjustment in turns (sharper turns need smaller speed) can be additionally added to the global planner or some specialized node that will smooth the speed profile for the path. Reacting to obstacles (slowing down, bringing ego vehicle to a stop) will be the task for the local planner. They both would produce a path - an array of waypoints - and thus the followers' behaviour should be the same: use waypoints for speed.
 
-Current waypoints have 1m spacing, but you can record much sparser waypoints, or if the path comes from the map, then there can be a long distance between waypoints in a straight section. The solution is simple - we will create a function that will interpolate a speed value based on where we are on the path with a linear function. So, we give it a distance, and the result is speed.
+Current waypoints have 1m spacing, but you can record much sparser waypoints, or if the path comes from the map, then there can be a long distance between waypoints in a straight section. The solution is simple - we will create a function that will do linear interpolation to get a speed value based on the location of ego vehicle on the path (the same already calculated distance from path start). So, we give it a distance, and the result is speed.
 
 ##### Instructions
 
 1. Collect waypoints into an array of x and y coordinates
-2. Calculate the distances between waypoints and add the 0m distance to the beginning of the distances array
+2. Calculate the distances between waypoints and add the 0m distance to the beginning of the distances array (distance to first waypoint is 0)
 3. Extract velocity values at the waypoints
 
 ```
@@ -310,7 +313,7 @@ distances = np.insert(distances, 0, 0)
 velocities = np.array([w.twist.twist.linear.x for w in msg.waypoints])
 ```
 
-4. Now you have `distances` and respective `velocities`. You are ready to create the function. One suggestion is to use `interp1d` from the [scipy library](https://docs.scipy.org/doc/scipy/reference/generated/scipy.interpolate.interp1d.html#scipy.interpolate.interp1d).
+4. Now you have `distances` and respective `velocities`. You are ready to create the function. We can use `interp1d` from the [scipy library](https://docs.scipy.org/doc/scipy/reference/generated/scipy.interpolate.interp1d.html#scipy.interpolate.interp1d).
    - Create the interpolator so that whenever the input distance is outside the range of the input distances, the returned value is 0.0. Use (`bounds_error` and `fill_value`)
    - When interpolator is created, we can input the distance and it returns the velocity, see example below
 
@@ -322,11 +325,11 @@ velocity = distance_to_velocity_interpolator(d_ego_from_path_start)
 5. When integrating the interpolator into the code:
    - Create the class variable for the interpolator that is initially assigned with the value `None`.
    - Only reassign it with the interpolator when it is ready in the callback.
-   - It will also be used in `current_pose_callback` through the class variable, but it might not be ready yet, so add a check in front of the callback
+   - It will also be used in `current_pose_callback` through the class variable, but it might not be initialized, so add it to a check in front of the callback
 
 ##### Validation
 * run `roslaunch practice_3 practice_3.launch`
-* Place the "bicycle" at the start of the path (use **2D Pose Estimate** button in rviz), and it should start following the path, and the speed should reflect the moment of recording the bag.
-* Clean the code and commit to your repo!
-* run with different lookahead distance `roslaunch practice_3 practice_3.launch lookahead_dist:=20`
-   - Is the behaviour different? What and why? Send the answer when all the code is finalized and committed with the email, along with the notification that the code is ready for review.
+* Place the ego vehicle at the start of the path (use **2D Pose Estimate** button in rviz), and it should start following the path, and the speed should reflect the moment of recording the bag.
+* If everything works without errors, clean the code (remove unnecessary debugging printouts) and commit to your repo!
+* run it with different lookahead distance `roslaunch practice_3 practice_3.launch lookahead_dist:=20`
+   - Is the behaviour different? What is different and why? Send the answer when all the code is finalized and committed with the email, along with the notification that the code is ready for review.
