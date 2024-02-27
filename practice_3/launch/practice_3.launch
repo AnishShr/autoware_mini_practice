@@ -17,6 +17,12 @@
     <!-- Bicycle_model simulator -->
     <node pkg="practice_3" type="bicycle_simulation.py" name="bicycle_simulation" output="screen" required="true" />
 
+    <!-- Waypoint follower -->
+    <node pkg="practice_3" type="pure_pursuit_follower.py" name="pure_pursuit_follower" output="screen" required="true" >
+        <param name="lookahead_distance"  value="$(arg lookahead_distance)" />
+        <remap from="path" to="global_path"/>
+    </node>
+
 
     <!-- Rviz -->
     <node type="rviz" name="rviz" pkg="rviz" args="-d $(find practice_3)/rviz/practice_3.rviz" required="true" />
