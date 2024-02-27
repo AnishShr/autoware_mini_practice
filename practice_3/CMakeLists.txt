@@ -12,3 +12,8 @@ catkin_package(
 include_directories(
   ${catkin_INCLUDE_DIRS}
 )
+
+catkin_install_python(PROGRAMS
+  nodes/control/pure_pursuit_follower.py
+  DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+)
