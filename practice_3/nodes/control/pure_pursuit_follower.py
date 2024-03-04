@@ -30,23 +30,17 @@ class PurePursuitFollower:
         # Subscribers
         rospy.Subscriber('path', Lane, self.path_callback, queue_size=1)
         rospy.Subscriber('/localization/current_pose', PoseStamped, self.current_pose_callback, queue_size=1)
-        rospy.Subscriber('/initialpose', PoseWithCovarianceStamped, self.initialpose_callback, queue_size=None, tcp_nodelay=True)
-     
-
-    def initialpose_callback(self, msg):
-        self.init_pose = msg
 
 
     def path_callback(self, msg):
-        # TODO
-        # convert waypoints to shapely linestring
-        path_linestring = LineString([(w.pose.pose.position.x, w.pose.pose.position.y) for w in msg.waypoints])
-        # prepare path - creates spatial tree, making the spatial queries more efficient
-        prepare(path_linestring)
-        self.path_linestring = path_linestring
-
+  
         # collect waypoint x and y coordinates
         waypoints_xy = np.array([(w.pose.pose.position.x, w.pose.pose.position.y) for w in msg.waypoints])
+
+        # convert waypoints to shapely linestring
+        path_linestring = LineString(waypoints_xy)
+        # prepare path - creates spatial tree, making the spatial queries more efficient
+        prepare(path_linestring)        
 
         # Calculate distances between points
         distances = np.cumsum(np.sqrt(np.sum(np.diff(waypoints_xy, axis=0)**2, axis=1)))
@@ -58,13 +52,21 @@ class PurePursuitFollower:
         velocities = np.array([w.twist.twist.linear.x for w in msg.waypoints])
 
         # distance to velocity interpolator
-        self.distance_to_velocity_interpolator = interp1d(distances, velocities, kind='linear')
+        distance_to_velocity_interpolator = interp1d(x=distances, 
+                                                     y=velocities, 
+                                                     kind='linear', 
+                                                     bounds_error=True,
+                                                     fill_value=0.0)
+        
+        # Assign to class variables
+        self.path_linestring = path_linestring
+        self.distance_to_velocity_interpolator = distance_to_velocity_interpolator
 
 
     def current_pose_callback(self, msg):
 
         # Publish velcoities only when the initial pose is set and the distance to velocity interpolator is assigned a value
-        if self.distance_to_velocity_interpolator is not None and self.init_pose is not None:
+        if self.distance_to_velocity_interpolator is not None:
 
             current_pose = Point([msg.pose.position.x, msg.pose.position.y])
             d_ego_from_path_start = self.path_linestring.project(current_pose)
@@ -98,6 +100,7 @@ class PurePursuitFollower:
 
     def run(self):
         rospy.spin()
+
 
 if __name__ == '__main__':
     rospy.init_node('pure_pursuit_follower')
