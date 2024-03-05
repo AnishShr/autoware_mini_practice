@@ -50,10 +50,9 @@ class Lanelet2MapVisualizer:
 
         # Load the map using Lanelet2
         if coordinate_transformer == "utm":
-                projector = UtmProjector(Origin(utm_origin_lat, utm_origin_lon), use_custom_origin, False)
+            projector = UtmProjector(Origin(utm_origin_lat, utm_origin_lon), use_custom_origin, False)
         else:
-            rospy.logfatal("%s - only utm and custom origin currently supported for lanelet2 map loading", rospy.get_name())
-            exit(1)
+            raise RuntimeError('Only "utm" is supported for lanelet2 map loading')
         self.lanelet2_map = load(lanelet2_map_name, projector)
 
         # Visualize the Lanelet2 map
