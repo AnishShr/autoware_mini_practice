@@ -104,10 +104,7 @@ class PurePursuitFollower:
             vehicle_cmd.ctrl_cmd.steering_angle = steering_angle
             vehicle_cmd.ctrl_cmd.linear_velocity = velocity
 
-        self.current_velocity_pub.publish(vehicle_cmd) 
-
-        # print(vehicle_cmd.ctrl_cmd.steering_angle)
-        # print(vehicle_cmd.ctrl_cmd.linear_velocity)
+        self.current_velocity_pub.publish(vehicle_cmd)   
   
 
     def run(self):
