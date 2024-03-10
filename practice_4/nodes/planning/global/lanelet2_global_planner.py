@@ -10,6 +10,9 @@ from lanelet2.geometry import findNearest
 from geometry_msgs.msg import PoseStamped
 from autoware_msgs.msg import Lane, Waypoint
 
+from shapely.geometry import LineString, Point
+from shapely import prepare, distance
+
 class LaneLet2GlobalPlanner():
     def __init__(self):
         # Parameters
@@ -44,6 +47,8 @@ class LaneLet2GlobalPlanner():
         self.goal_pos = None
         self.current_pos = None
 
+        self.waypoints = None
+
         # Publishers
         self.waypoints_pub = rospy.Publisher('/global_path', Lane, queue_size=1, latch=True)
 
@@ -57,20 +62,14 @@ class LaneLet2GlobalPlanner():
         output: List of waypoints to follow without waypoints overlapping
         """
         waypoint_list = []
-
+        
         
         for lanelet in lanelet_sequence:
             # Assigning speed to each lanelet, if 'speed_ref' not present
             if 'speed_ref' in lanelet.attributes:
-                speed = float(lanelet.attributes['speed_ref'])   # speed in km/hr
-                if speed > self.speed_limit:
-                    speed = self.speed_limit
-                
-            else:
-                speed = self.speed_limit # defualt speed in km/hr
-            
-            # Converting speed from km/hr to m/s
-            speed = speed * 1000 / (60 * 60)
+                speed = min(float(lanelet.attributes['speed_ref']), self.speed_limit)
+
+            speed = speed / 3.6
 
             # Adding waypoints to the list, excluding overlapping of waypoints
             for point in lanelet.centerline:
@@ -88,6 +87,21 @@ class LaneLet2GlobalPlanner():
         return waypoint_list
             
     
+    def create_lane_msg(self, list_of_waypoints, dist_ego_from_goal_point):
+
+        lane = Lane()
+        lane.header.frame_id = self.output_frame
+        lane.header.stamp = rospy.Time.now()
+        
+        if dist_ego_from_goal_point > self.distance_to_goal_limit:
+            waypoints = list_of_waypoints
+            lane.waypoints = waypoints
+        
+        
+        return lane
+
+
+
     def goal_callback(self, msg):
 
         if self.current_location is None:
@@ -99,8 +113,8 @@ class LaneLet2GlobalPlanner():
                     msg.pose.orientation.w, msg.header.frame_id)
         
         # Converting PoseStamped msg to BasicPoint2d geometry type
-        self.goal_pos = msg.pose
-        self.goal_point = BasicPoint2d(self.goal_pos.position.x, self.goal_pos.position.y)
+        # self.goal_pos = msg.pose
+        self.goal_point = BasicPoint2d(msg.pose.position.x, msg.pose.position.y)
 
         # get start and end lanelets
         start_lanelet = findNearest(self.lanelet2_map.laneletLayer, self.current_location, 1)[0][1]
@@ -119,40 +133,56 @@ class LaneLet2GlobalPlanner():
 
         # Getting the list of waypoints
         waypoints = self.lanelet_sequence_to_waypoints(path_no_lane_change)
+        # self.waypoints = waypoints
         
-        # Replace the final point in the waypoints list by the goal point
-        waypoints[-1].pose.pose = self.goal_pos
+        waypoints_array = np.array([(wp.pose.pose.position.x, wp.pose.pose.position.y) for wp in waypoints])
+        waypoints_linestring = LineString(waypoints_array)
 
-        # Publish the lane msg with waypoints acquired
-        lane = Lane()
-        lane.header.frame_id = self.output_frame
-        lane.header.stamp = rospy.Time.now()
-        lane.waypoints = waypoints
-        self.waypoints_pub.publish(lane)
+        goal_pos = Point([msg.pose.position.x, msg.pose.position.y])
+        d_goal_from_path_start = waypoints_linestring.project(goal_pos)
+        goal_point = waypoints_linestring.interpolate(d_goal_from_path_start)
+        goal_pos_in_path = np.array([goal_point.x, goal_point.y])
+        
+        waypoints_filtered = []
+        for wp in waypoints:
+            wp_pos = Point([wp.pose.pose.position.x, wp.pose.pose.position.y])
+            d_wp_from_path_start = waypoints_linestring.project(wp_pos)
+
+            if d_wp_from_path_start < d_goal_from_path_start:
+                waypoints_filtered.append(wp)
+        
+        goal_wp = Waypoint()
+        goal_wp.pose.pose.position.x = goal_pos_in_path[0]
+        goal_wp.pose.pose.position.y = goal_pos_in_path[1]
+        waypoints_filtered.append(goal_wp)
+
+        self.waypoints = waypoints_filtered
+
     
     def current_pose_callback(self, msg):
 
         self.current_location = BasicPoint2d(msg.pose.position.x, msg.pose.position.y)
 
-        if self.goal_pos is None:
+        waypoints = self.waypoints
+
+        if waypoints is None:
             return
 
+        # print(self.waypoints)
         current_pos = np.array([msg.pose.position.x, msg.pose.position.y])
-        goal_pos = np.array([self.goal_pos.position.x, self.goal_pos.position.y])
 
-        # Compute the distance of the vehicle from the goal
-        dist_ego_from_goal = np.sqrt((goal_pos[0]-current_pos[0])**2 + (goal_pos[1]-current_pos[1])**2)
+        # waypoints = self.waypoints
 
-        # Clear the path(waypoints) once the vehicle is within distance limit to the goal 
-        if dist_ego_from_goal < self.distance_to_goal_limit:
-            lane = Lane()
-            lane.header.frame_id = self.output_frame
-            lane.header.stamp = rospy.Time.now()
-            self.waypoints_pub.publish(lane)
+        goal_pos_in_path = np.array([waypoints[-1].pose.pose.position.x, waypoints[-1].pose.pose.position.y])
 
+        dist_ego_from_goal = np.sqrt((goal_pos_in_path[0]-current_pos[0])**2 + (goal_pos_in_path[1]-current_pos[1])**2)
+
+        lane_msg = self.create_lane_msg(waypoints, dist_ego_from_goal)
+        self.waypoints_pub.publish(lane_msg)
+
+        if len(lane_msg.waypoints) == 0:
             rospy.loginfo("GOAL REACHED !!")
-            self.goal_pos = None
-            return
+            self.waypoints = None
 
 
     def run(self):
