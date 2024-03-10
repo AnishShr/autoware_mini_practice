@@ -35,16 +35,8 @@ class PurePursuitFollower:
     def path_callback(self, msg):
         
         if len(msg.waypoints) == 0:
-            vehicle_cmd = VehicleCmd()
-            vehicle_cmd.header.stamp = msg.header.stamp
-            vehicle_cmd.header.frame_id = "base_link"
-            vehicle_cmd.brake_cmd.brake = 1
-
-            self.current_velocity_pub.publish(vehicle_cmd)
-            
+            self.path_linestring = None
             self.distance_to_velocity_interpolator = None
-            
-            rospy.sleep(1.0)
             return
 
         # collect waypoint x and y coordinates
@@ -75,42 +67,47 @@ class PurePursuitFollower:
         self.path_linestring = path_linestring
         self.distance_to_velocity_interpolator = distance_to_velocity_interpolator
 
-        self.waypoints = msg.waypoints
-
     def current_pose_callback(self, msg):
-
-        # Publish velcoities only when the initial pose is set and the distance to velocity interpolator is assigned a value
-        if self.distance_to_velocity_interpolator is None:
-            return
-
-        current_pose = Point([msg.pose.position.x, msg.pose.position.y])
-        d_ego_from_path_start = self.path_linestring.project(current_pose)
-
-        # using euler_from_quaternion to get the heading angle
-        _, _, heading = euler_from_quaternion([msg.pose.orientation.x, msg.pose.orientation.y, msg.pose.orientation.z, msg.pose.orientation.w])
-
-        # dist from start of path to the lookahead distance
-        d_lookahead_point = d_ego_from_path_start + self.lookahead_distance
-
-        lookahead_point = self.path_linestring.interpolate(d_lookahead_point)
-        ld = distance(current_pose, lookahead_point)
-
-        # lookahead point heading calculation
-        lookahead_heading = np.arctan2(lookahead_point.y - current_pose.y, lookahead_point.x - current_pose.x)
-        
-        # Compute the linear velocity and steering angle, and publish    
-        velocity = self.distance_to_velocity_interpolator(d_ego_from_path_start)
-        
-        alpha = lookahead_heading - heading
-        steering_angle = np.arctan2((2*self.wheel_base)*np.sin(alpha), ld)
 
         vehicle_cmd = VehicleCmd()
         vehicle_cmd.header.stamp = msg.header.stamp
         vehicle_cmd.header.frame_id = "base_link"
-        vehicle_cmd.ctrl_cmd.steering_angle = steering_angle
-        vehicle_cmd.ctrl_cmd.linear_velocity = velocity
+        
+        # Publish velcoities only when the initial pose is set and the distance to velocity interpolator is assigned a value
+        if self.path_linestring is None or self.distance_to_velocity_interpolator is None:
+            
+            vehicle_cmd.ctrl_cmd.steering_angle = 0.0
+            vehicle_cmd.ctrl_cmd.linear_velocity = 0.0
+
+        else:
+            current_pose = Point([msg.pose.position.x, msg.pose.position.y])
+            d_ego_from_path_start = self.path_linestring.project(current_pose)
+
+            # using euler_from_quaternion to get the heading angle
+            _, _, heading = euler_from_quaternion([msg.pose.orientation.x, msg.pose.orientation.y, msg.pose.orientation.z, msg.pose.orientation.w])
+
+            # dist from start of path to the lookahead distance
+            d_lookahead_point = d_ego_from_path_start + self.lookahead_distance
+
+            lookahead_point = self.path_linestring.interpolate(d_lookahead_point)
+            ld = distance(current_pose, lookahead_point)
+
+            # lookahead point heading calculation
+            lookahead_heading = np.arctan2(lookahead_point.y - current_pose.y, lookahead_point.x - current_pose.x)
+            
+            # Compute the linear velocity and steering angle, and publish    
+            velocity = self.distance_to_velocity_interpolator(d_ego_from_path_start)
+            
+            alpha = lookahead_heading - heading
+            steering_angle = np.arctan2((2*self.wheel_base)*np.sin(alpha), ld)
+            
+            vehicle_cmd.ctrl_cmd.steering_angle = steering_angle
+            vehicle_cmd.ctrl_cmd.linear_velocity = velocity
 
         self.current_velocity_pub.publish(vehicle_cmd) 
+
+        # print(vehicle_cmd.ctrl_cmd.steering_angle)
+        # print(vehicle_cmd.ctrl_cmd.linear_velocity)
   
 
     def run(self):
