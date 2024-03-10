@@ -61,8 +61,7 @@ class LaneLet2GlobalPlanner():
         Input: Lanelet sequence leading to the final waypoint in corresponding lanelet
         output: List of waypoints to follow without waypoints overlapping
         """
-        waypoint_list = []
-        
+        waypoint_list = []        
         
         for lanelet in lanelet_sequence:
             # Assigning speed to each lanelet, if 'speed_ref' not present
@@ -95,11 +94,9 @@ class LaneLet2GlobalPlanner():
         
         if dist_ego_from_goal_point > self.distance_to_goal_limit:
             waypoints = list_of_waypoints
-            lane.waypoints = waypoints
-        
+            lane.waypoints = waypoints        
         
         return lane
-
 
 
     def goal_callback(self, msg):
@@ -113,7 +110,6 @@ class LaneLet2GlobalPlanner():
                     msg.pose.orientation.w, msg.header.frame_id)
         
         # Converting PoseStamped msg to BasicPoint2d geometry type
-        # self.goal_pos = msg.pose
         self.goal_point = BasicPoint2d(msg.pose.position.x, msg.pose.position.y)
 
         # get start and end lanelets
@@ -170,11 +166,7 @@ class LaneLet2GlobalPlanner():
 
         # print(self.waypoints)
         current_pos = np.array([msg.pose.position.x, msg.pose.position.y])
-
-        # waypoints = self.waypoints
-
         goal_pos_in_path = np.array([waypoints[-1].pose.pose.position.x, waypoints[-1].pose.pose.position.y])
-
         dist_ego_from_goal = np.sqrt((goal_pos_in_path[0]-current_pos[0])**2 + (goal_pos_in_path[1]-current_pos[1])**2)
 
         lane_msg = self.create_lane_msg(waypoints, dist_ego_from_goal)
