@@ -40,13 +40,8 @@ class LaneLet2GlobalPlanner():
         # routing graph
         self.graph = lanelet2.routing.RoutingGraph(self.lanelet2_map, traffic_rules)
 
-        # class variables
-        self.goal_point = None
+        # class variables        
         self.current_location = None
-
-        self.goal_pos = None
-        self.current_pos = None
-
         self.waypoints = None
 
         # Publishers
@@ -110,11 +105,11 @@ class LaneLet2GlobalPlanner():
                     msg.pose.orientation.w, msg.header.frame_id)
         
         # Converting PoseStamped msg to BasicPoint2d geometry type
-        self.goal_point = BasicPoint2d(msg.pose.position.x, msg.pose.position.y)
+        goal_point = BasicPoint2d(msg.pose.position.x, msg.pose.position.y)
 
         # get start and end lanelets
         start_lanelet = findNearest(self.lanelet2_map.laneletLayer, self.current_location, 1)[0][1]
-        goal_lanelet = findNearest(self.lanelet2_map.laneletLayer, self.goal_point, 1)[0][1]
+        goal_lanelet = findNearest(self.lanelet2_map.laneletLayer, goal_point, 1)[0][1]
         # find routing graph
         route = self.graph.getRoute(start_lanelet, goal_lanelet, 0, True)
 
@@ -136,8 +131,8 @@ class LaneLet2GlobalPlanner():
 
         goal_pos = Point([msg.pose.position.x, msg.pose.position.y])
         d_goal_from_path_start = waypoints_linestring.project(goal_pos)
-        goal_point = waypoints_linestring.interpolate(d_goal_from_path_start)
-        goal_pos_in_path = np.array([goal_point.x, goal_point.y])
+        goal_point_in_path = waypoints_linestring.interpolate(d_goal_from_path_start)
+        goal_pos_in_path = np.array([goal_point_in_path.x, goal_point_in_path.y])
         
         waypoints_filtered = []
         for wp in waypoints:
