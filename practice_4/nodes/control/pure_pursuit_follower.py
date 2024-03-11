@@ -25,10 +25,10 @@ class PurePursuitFollower:
         self.distance_to_velocity_interpolator = None
 
         # Publishers
-        self.current_velocity_pub = rospy.Publisher('control/vehicle_cmd', VehicleCmd, queue_size=1)
+        self.current_velocity_pub = rospy.Publisher('/control/vehicle_cmd', VehicleCmd, queue_size=1)
 
         # Subscribers
-        rospy.Subscriber('path', Lane, self.path_callback, queue_size=1)
+        rospy.Subscriber('/path', Lane, self.path_callback, queue_size=1)
         rospy.Subscriber('/localization/current_pose', PoseStamped, self.current_pose_callback, queue_size=1)
 
 
