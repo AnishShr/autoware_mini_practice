@@ -8,15 +8,11 @@
 
     <!-- Nodes -->
 
-    <!-- Waypoint loader -->
-    <!-- <node pkg="practice_4" type="waypoint_loader.py" name="waypoint_loader" output="screen" required="true" >
-        <param name="waypoints_file"    value="$(find common)/data/trajectories/$(arg waypoints_file)" />
-    </node> -->
-
     <!-- Lanelet2 Global Planner -->
     <node pkg="practice_4" type="lanelet2_global_planner.py" name="lanelet2_global_planner" output="screen" required="true" >
         <param name="lanelet2_map_name"  value="$(find common)/data/maps/$(arg lanelet2_map_name)" />
         <param name="speed_limit"  value="$(arg speed_limit)" />
+        <remap from="path" to="global_path"/>
     </node>
 
     <!-- Global path visualizer -->
