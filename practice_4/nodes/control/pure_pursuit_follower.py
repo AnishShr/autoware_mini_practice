@@ -68,17 +68,13 @@ class PurePursuitFollower:
         self.distance_to_velocity_interpolator = distance_to_velocity_interpolator
 
     def current_pose_callback(self, msg):
-
-        vehicle_cmd = VehicleCmd()
-        vehicle_cmd.header.stamp = msg.header.stamp
-        vehicle_cmd.header.frame_id = "base_link"
         
         # Publish velcoities only when the initial pose is set and the distance to velocity interpolator is assigned a value
         if self.path_linestring is None or self.distance_to_velocity_interpolator is None:
             
-            vehicle_cmd.ctrl_cmd.steering_angle = 0.0
-            vehicle_cmd.ctrl_cmd.linear_velocity = 0.0
-
+            steering_angle = 0
+            linear_velocity = 0
+        
         else:
             current_pose = Point([msg.pose.position.x, msg.pose.position.y])
             d_ego_from_path_start = self.path_linestring.project(current_pose)
@@ -96,14 +92,18 @@ class PurePursuitFollower:
             lookahead_heading = np.arctan2(lookahead_point.y - current_pose.y, lookahead_point.x - current_pose.x)
             
             # Compute the linear velocity and steering angle, and publish    
-            velocity = self.distance_to_velocity_interpolator(d_ego_from_path_start)
+            linear_velocity = self.distance_to_velocity_interpolator(d_ego_from_path_start)
             
             alpha = lookahead_heading - heading
             steering_angle = np.arctan2((2*self.wheel_base)*np.sin(alpha), ld)
             
-            vehicle_cmd.ctrl_cmd.steering_angle = steering_angle
-            vehicle_cmd.ctrl_cmd.linear_velocity = velocity
 
+        vehicle_cmd = VehicleCmd()
+        vehicle_cmd.header.stamp = msg.header.stamp
+        vehicle_cmd.header.frame_id = "base_link"
+        vehicle_cmd.ctrl_cmd.linear_velocity = linear_velocity
+        vehicle_cmd.ctrl_cmd.steering_angle = steering_angle
+        
         self.current_velocity_pub.publish(vehicle_cmd)   
   
 
