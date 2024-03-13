@@ -42,6 +42,7 @@ class LaneLet2GlobalPlanner():
 
         # class variables        
         self.current_location = None
+        self.goal_pos = None
         self.waypoints = None
 
         # Publishers
@@ -56,7 +57,10 @@ class LaneLet2GlobalPlanner():
         Input: Lanelet sequence leading to the final waypoint in corresponding lanelet
         output: List of waypoints to follow without waypoints overlapping
         """
-        waypoint_list = []        
+
+        # Set consists of unique elements only (no-duplication) so waypoints don't overlap 
+        # later this set will be converted to list and sent as a list of all valid waypoints
+        waypoints_list = []        
         
         for lanelet in lanelet_sequence:
             # Assigning speed to each lanelet, if 'speed_ref' not present
@@ -65,33 +69,51 @@ class LaneLet2GlobalPlanner():
 
             speed = speed / 3.6
 
-            # Adding waypoints to the list, excluding overlapping of waypoints
+            # Adding waypoints to the set (no duplication in set)
             for point in lanelet.centerline:
+                
                 waypoint = Waypoint()
                 waypoint.pose.pose.position.x = point.x
                 waypoint.pose.pose.position.y = point.y
                 waypoint.pose.pose.position.z = point.z
                 waypoint.twist.twist.linear.x = speed
 
-                waypoint_list.append(waypoint)
+                if waypoint not in waypoints_list:
+                    waypoints_list.append(waypoint)
         
-            waypoint_list.pop()
-        waypoint_list.append(waypoint)
+        waypoints_array = np.array([(wp.pose.pose.position.x, wp.pose.pose.position.y) for wp in waypoints_list])
+        waypoints_linestring = LineString(waypoints_array)
 
-        return waypoint_list
+        goal_pos = Point(self.goal_pos)
+        d_goal_from_path_start = waypoints_linestring.project(goal_pos)
+        goal_point_in_path = waypoints_linestring.interpolate(d_goal_from_path_start)
+        goal_pos_in_path = np.array([goal_point_in_path.x, goal_point_in_path.y])
+
+        waypoints_filtered = []
+        for wp in waypoints_list:
+            wp_pos = Point([wp.pose.pose.position.x, wp.pose.pose.position.y])
+            d_wp_from_path_start = waypoints_linestring.project(wp_pos)
+
+            if d_wp_from_path_start < d_goal_from_path_start:
+                waypoints_filtered.append(wp)
+        
+        goal_wp = Waypoint()
+        goal_wp.pose.pose.position.x = goal_pos_in_path[0]
+        goal_wp.pose.pose.position.y = goal_pos_in_path[1]
+        waypoints_filtered.append(goal_wp)
+
+        return waypoints_filtered
             
     
-    def create_lane_msg(self, list_of_waypoints, dist_ego_from_goal_point):
+    def create_and_publish_lane_msg(self, list_of_waypoints):
 
         lane = Lane()
         lane.header.frame_id = self.output_frame
         lane.header.stamp = rospy.Time.now()
+        lane.waypoints = list_of_waypoints        
         
-        if dist_ego_from_goal_point > self.distance_to_goal_limit:
-            waypoints = list_of_waypoints
-            lane.waypoints = waypoints        
+        self.waypoints_pub.publish(lane)
         
-        return lane
 
 
     def goal_callback(self, msg):
@@ -105,6 +127,7 @@ class LaneLet2GlobalPlanner():
                     msg.pose.orientation.w, msg.header.frame_id)
         
         # Converting PoseStamped msg to BasicPoint2d geometry type
+        self.goal_pos = np.array([msg.pose.position.x, msg.pose.position.y])
         goal_point = BasicPoint2d(msg.pose.position.x, msg.pose.position.y)
 
         # get start and end lanelets
@@ -123,31 +146,10 @@ class LaneLet2GlobalPlanner():
         path_no_lane_change = path.getRemainingLane(start_lanelet)
 
         # Getting the list of waypoints
-        waypoints = self.lanelet_sequence_to_waypoints(path_no_lane_change)
-        # self.waypoints = waypoints
-        
-        waypoints_array = np.array([(wp.pose.pose.position.x, wp.pose.pose.position.y) for wp in waypoints])
-        waypoints_linestring = LineString(waypoints_array)
+        waypoints = self.lanelet_sequence_to_waypoints(path_no_lane_change)        
+        self.create_and_publish_lane_msg(waypoints)
 
-        goal_pos = Point([msg.pose.position.x, msg.pose.position.y])
-        d_goal_from_path_start = waypoints_linestring.project(goal_pos)
-        goal_point_in_path = waypoints_linestring.interpolate(d_goal_from_path_start)
-        goal_pos_in_path = np.array([goal_point_in_path.x, goal_point_in_path.y])
-        
-        waypoints_filtered = []
-        for wp in waypoints:
-            wp_pos = Point([wp.pose.pose.position.x, wp.pose.pose.position.y])
-            d_wp_from_path_start = waypoints_linestring.project(wp_pos)
-
-            if d_wp_from_path_start < d_goal_from_path_start:
-                waypoints_filtered.append(wp)
-        
-        goal_wp = Waypoint()
-        goal_wp.pose.pose.position.x = goal_pos_in_path[0]
-        goal_wp.pose.pose.position.y = goal_pos_in_path[1]
-        waypoints_filtered.append(goal_wp)
-
-        self.waypoints = waypoints_filtered
+        self.waypoints = waypoints
 
     
     def current_pose_callback(self, msg):
@@ -164,10 +166,8 @@ class LaneLet2GlobalPlanner():
         goal_pos_in_path = np.array([waypoints[-1].pose.pose.position.x, waypoints[-1].pose.pose.position.y])
         dist_ego_from_goal = np.sqrt((goal_pos_in_path[0]-current_pos[0])**2 + (goal_pos_in_path[1]-current_pos[1])**2)
 
-        lane_msg = self.create_lane_msg(waypoints, dist_ego_from_goal)
-        self.waypoints_pub.publish(lane_msg)
-
-        if len(lane_msg.waypoints) == 0:
+        if dist_ego_from_goal < self.distance_to_goal_limit:
+            self.create_and_publish_lane_msg(list_of_waypoints=[])
             rospy.loginfo("GOAL REACHED !!")
             self.waypoints = None
 
