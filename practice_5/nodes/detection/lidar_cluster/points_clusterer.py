@@ -28,7 +28,7 @@ class PointsClusterer:
         # Class variables        
         self.clusterer = DBSCAN(eps=self.cluster_epsilon,
                                 min_samples=self.cluster_min_size)
-        # Publihsers
+        # Publishers
         self.points_cluster_pub = rospy.Publisher('points_clustered', PointCloud2, queue_size=1, tcp_nodelay=True)
 
         # Subscribers
@@ -62,7 +62,6 @@ class PointsClusterer:
         cluster_msg.header.frame_id = msg.header.frame_id
 
         self.points_cluster_pub.publish(cluster_msg)
-        # print(cluster_msg.header)
 
 
     def run(self):
