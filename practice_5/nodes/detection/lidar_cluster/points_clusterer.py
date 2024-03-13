@@ -62,6 +62,7 @@ class PointsClusterer:
         cluster_msg.header.frame_id = msg.header.frame_id
 
         self.points_cluster_pub.publish(cluster_msg)
+        # print(cluster_msg.header)
 
 
     def run(self):
