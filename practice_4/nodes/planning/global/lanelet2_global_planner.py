@@ -58,8 +58,6 @@ class LaneLet2GlobalPlanner():
         output: List of waypoints to follow without waypoints overlapping
         """
 
-        # Set consists of unique elements only (no-duplication) so waypoints don't overlap 
-        # later this set will be converted to list and sent as a list of all valid waypoints
         waypoints_list = []        
         
         for lanelet in lanelet_sequence:
@@ -69,7 +67,6 @@ class LaneLet2GlobalPlanner():
 
             speed = speed / 3.6
 
-            # Adding waypoints to the set (no duplication in set)
             for point in lanelet.centerline:
                 
                 waypoint = Waypoint()
