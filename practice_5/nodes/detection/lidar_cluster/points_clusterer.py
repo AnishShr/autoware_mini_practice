@@ -4,18 +4,10 @@ import rospy
 import numpy as np
 from sklearn.cluster import DBSCAN
 
-# from shapely import MultiPoint
-# from tf2_ros import TransformListener, Buffer, TransformException
 from numpy.lib.recfunctions import structured_to_unstructured, unstructured_to_structured
 from ros_numpy import numpify, msgify
 
 from sensor_msgs.msg import PointCloud2
-# from autoware_msgs.msg import DetectedObjectArray, DetectedObject
-# from std_msgs.msg import ColorRGBA, Header
-# from geometry_msgs.msg import Point32
-
-
-# BLUE80P = ColorRGBA(0.0, 0.0, 1.0, 0.8)
 
 class PointsClusterer:
     def __init__(self):
