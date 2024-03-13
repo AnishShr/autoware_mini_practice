@@ -11,7 +11,6 @@ from geometry_msgs.msg import PoseStamped
 from autoware_msgs.msg import Lane, Waypoint
 
 from shapely.geometry import LineString, Point
-from shapely import prepare, distance
 
 class LaneLet2GlobalPlanner():
     def __init__(self):
