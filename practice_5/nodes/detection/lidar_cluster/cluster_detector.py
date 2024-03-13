@@ -51,9 +51,7 @@ class ClusterDetector:
             points = np.column_stack((points, np.array(np.ones(points.shape[0]))))
             points = points.dot(tf_matrix.T)
 
-            object_array = DetectedObjectArray()
-            object_array.header.stamp = msg.header.stamp
-            object_array.header.frame_id = self.output_frame
+            detetcted_object_array = []
 
             num_clusters = 0
             if len(labels) > 0:
@@ -87,7 +85,6 @@ class ClusterDetector:
                 object.convex_hull.header.frame_id = self.output_frame
                 object.convex_hull.polygon.points = convex_hull_points
                 
-
                 object.label = "Unknown"
                 object.color = BLUE80P
                 object.valid = True
@@ -96,10 +93,13 @@ class ClusterDetector:
                 object.velocity_reliable = False
                 object.acceleration_reliable = False
 
-                
-                self.object_pub.publish(object)
-                object_array.objects.append(object)
+                detetcted_object_array.append(object)
 
+
+            object_array = DetectedObjectArray()
+            object_array.header.stamp = msg.header.stamp
+            object_array.header.frame_id = self.output_frame
+            object_array.objects = detetcted_object_array
 
             self.objects_pub.publish(object_array)
 
