@@ -34,6 +34,8 @@ class PointsClusterer:
         points = structured_to_unstructured(data[['x', 'y', 'z']], dtype=np.float32)
         labels = self.clusterer.fit_predict(points)
 
+        assert points.shape[0] == labels.shape[0], "Point cloud points and labels are of different lengths"
+
         valid_points_indices = labels >= 0
         valid_points = points[valid_points_indices]
         valid_lables = labels[valid_points_indices]
