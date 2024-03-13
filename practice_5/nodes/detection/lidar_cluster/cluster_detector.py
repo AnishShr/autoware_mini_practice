@@ -10,8 +10,8 @@ from ros_numpy import numpify
 
 from sensor_msgs.msg import PointCloud2
 from autoware_msgs.msg import DetectedObjectArray, DetectedObject
-from std_msgs.msg import ColorRGBA, Header
-from geometry_msgs.msg import Point32, PolygonStamped
+from std_msgs.msg import ColorRGBA
+from geometry_msgs.msg import Point32
 
 
 BLUE80P = ColorRGBA(0.0, 0.0, 1.0, 0.8)
