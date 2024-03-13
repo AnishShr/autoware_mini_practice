@@ -5,8 +5,8 @@ import numpy as np
 
 from shapely import MultiPoint
 from tf2_ros import TransformListener, Buffer, TransformException
-from numpy.lib.recfunctions import structured_to_unstructured, unstructured_to_structured
-from ros_numpy import numpify, msgify
+from numpy.lib.recfunctions import structured_to_unstructured
+from ros_numpy import numpify
 
 from sensor_msgs.msg import PointCloud2
 from autoware_msgs.msg import DetectedObjectArray, DetectedObject
@@ -53,10 +53,13 @@ class ClusterDetector:
 
             detetcted_object_array = []
 
-            num_clusters = 0
+            num_clusters = 0            
             if len(labels) > 0:
                 num_clusters = np.max(labels) + 1
 
+            # loop over the number of clusters
+            # if no labels, empty array of DetectedObject will be published
+            # if labels, array of clustered DetectedObject will be published
             for i in range(num_clusters):
                 mask = (labels == i)
 
