@@ -83,9 +83,6 @@ class ClusterDetector:
                 object.pose.position.y = centroid_y
                 object.pose.position.z = centroid_z
                 
-                # object.convex_hul --> PolygonStamped msg, adding the header and points to this msg
-                object.convex_hull.header.stamp = msg.header.stamp
-                object.convex_hull.header.frame_id = self.output_frame
                 object.convex_hull.polygon.points = convex_hull_points
                 
                 object.label = "Unknown"
