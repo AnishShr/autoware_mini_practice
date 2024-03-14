@@ -42,7 +42,6 @@ class LaneLet2GlobalPlanner():
         # class variables        
         self.current_location = None
         self.goal_pos = None
-        self.waypoints = None
 
         # Publishers
         self.waypoints_pub = rospy.Publisher('/path', Lane, queue_size=1, latch=True)
@@ -96,7 +95,11 @@ class LaneLet2GlobalPlanner():
         goal_wp = Waypoint()
         goal_wp.pose.pose.position.x = goal_pos_in_path[0]
         goal_wp.pose.pose.position.y = goal_pos_in_path[1]
+        goal_wp.pose.pose.position.z = self.goal_pos[2]
         waypoints_filtered.append(goal_wp)
+
+        self.goal_pos[0] = goal_pos_in_path[0]
+        self.goal_pos[1] = goal_pos_in_path[1]
 
         return waypoints_filtered
             
@@ -115,6 +118,7 @@ class LaneLet2GlobalPlanner():
     def goal_callback(self, msg):
 
         if self.current_location is None:
+            rospy.logwarn("Current vehicle position not set !!")
             return
 
         rospy.loginfo("%s - goal position (%f, %f, %f) orientation (%f, %f, %f, %f) in %s frame", rospy.get_name(),
@@ -123,8 +127,8 @@ class LaneLet2GlobalPlanner():
                     msg.pose.orientation.w, msg.header.frame_id)
         
         # Converting PoseStamped msg to BasicPoint2d geometry type
-        self.goal_pos = np.array([msg.pose.position.x, msg.pose.position.y])
-        goal_point = BasicPoint2d(msg.pose.position.x, msg.pose.position.y)
+        self.goal_pos = np.array([msg.pose.position.x, msg.pose.position.y, msg.pose.position.z])
+        goal_point = BasicPoint2d(self.goal_pos[0], self.goal_pos[1])
 
         # get start and end lanelets
         start_lanelet = findNearest(self.lanelet2_map.laneletLayer, self.current_location, 1)[0][1]
@@ -142,30 +146,27 @@ class LaneLet2GlobalPlanner():
         path_no_lane_change = path.getRemainingLane(start_lanelet)
 
         # Getting the list of waypoints
-        waypoints = self.lanelet_sequence_to_waypoints(path_no_lane_change)        
+        waypoints = self.lanelet_sequence_to_waypoints(path_no_lane_change)  
+        # Publishing the list of waypoints in the Lane msg      
         self.create_and_publish_lane_msg(waypoints)
-
-        self.waypoints = waypoints
 
     
     def current_pose_callback(self, msg):
 
         self.current_location = BasicPoint2d(msg.pose.position.x, msg.pose.position.y)
 
-        waypoints = self.waypoints
-
-        if waypoints is None:
+        goal_pos = self.goal_pos
+        if goal_pos is None:
             return
-
-        # print(self.waypoints)
+        
         current_pos = np.array([msg.pose.position.x, msg.pose.position.y])
-        goal_pos_in_path = np.array([waypoints[-1].pose.pose.position.x, waypoints[-1].pose.pose.position.y])
-        dist_ego_from_goal = np.sqrt((goal_pos_in_path[0]-current_pos[0])**2 + (goal_pos_in_path[1]-current_pos[1])**2)
-
+        dist_ego_from_goal = np.sqrt((goal_pos[0]-current_pos[0])**2 + (goal_pos[1]-current_pos[1])**2)
+        
+        # if the ego vehicle is close to the goal, stop the vehicle
         if dist_ego_from_goal < self.distance_to_goal_limit:
             self.create_and_publish_lane_msg(list_of_waypoints=[])
-            rospy.loginfo("GOAL REACHED !!")
-            self.waypoints = None
+            rospy.loginfo("GOAL REACHED !! \n")
+            self.goal_pos = None
 
 
     def run(self):
