@@ -1,0 +1,50 @@
+<?xml version="1.0"?>
+<launch>
+    
+    <arg name="bag_file"                default="2023-05-18-14-26-36_sensors_tfl_bot_aed_with_set_dest.bag" />
+    <arg name="speed_limit"             default="40" />
+    <arg name="lanelet2_map_name"       default="tartu_demo.osm" />
+    <arg name="use_localization"        default="true" />
+    <arg name="use_planning"            default="true" />
+    <arg name="use_detection"           default="true" />
+    <arg name="use_control"             default="true" />
+    <arg name="use_tracking"            default="false" />
+    <arg name="use_local_planner"       default="true" />
+
+
+    <!-- Bicycle_model simulator -->
+    <node pkg="practice_6" type="bicycle_simulation.py" name="bicycle_simulation" output="screen" required="true" >
+        <remap from="vehicle_status" to="/vehicle/vehicle_status" />
+    </node>
+
+    <!-- Localization -->
+    <include if="$(arg use_localization)" file="$(find practice_6)/launch/localization.launch" />
+
+    <!-- Planning -->
+    <include if="$(arg use_planning)" file="$(find practice_6)/launch/planning.launch">
+        <arg name="lanelet2_map_name"   value="$(arg lanelet2_map_name)" />
+        <arg name="speed_limit"         value="$(arg speed_limit)" />
+        <arg name="use_local_planner"   value="$(arg use_local_planner)" />
+    </include>
+
+    <!-- Detection -->
+    <include if="$(arg use_detection)" file="$(find practice_6)/launch/detection_sim.launch" >
+        <arg name="use_tracking"        value="$(arg use_tracking)" />
+    </include>
+
+    <!-- Control -->
+    <include if="$(arg use_control)" file="$(find practice_6)/launch/control.launch" />
+
+    <!-- Load vehicle config data -->
+    <rosparam command="load" file="$(find practice_6)/config/vehicle.yaml"/>
+
+    <!-- Load static transforms -->
+    <node pkg="robot_state_publisher" type="robot_state_publisher" name="vehicle_platform_frames">
+        <remap from="robot_description" to="vehicle_platform_frames/robot_description" />
+        <param name="robot_description" textfile="$(find practice_6)/config/platform.urdf" />
+    </node>
+
+    <include file="$(find practice_6)/launch/dashboard.launch" />
+    <node type="rviz" name="rviz" pkg="rviz" args="-d $(find practice_6)/rviz/practice_6.rviz" required="true" />
+
+</launch>

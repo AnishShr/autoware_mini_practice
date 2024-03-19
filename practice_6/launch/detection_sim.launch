@@ -1,0 +1,21 @@
+<?xml version="1.0"?>
+<launch>
+
+    <arg name="use_tracking"    default="false" />
+
+    <group ns="detection">
+
+        <node pkg="practice_6" type="obstacle_simulation.py" name="obstacle_simulation" output="screen" required="true" />
+        
+        <node pkg="topic_tools" type="relay" args="detected_objects /detection/final_objects" name="detected_objects_relay" output="screen" required="true" />
+        
+        <node type="detected_objects_visualizer.py" name="final_objects_visualizer" pkg="practice_6" output="screen" required="true">
+            <remap from="detected_objects" to="final_objects" />
+            <remap from="detected_objects_markers" to="final_objects_markers" />
+        </node>
+
+        <rosparam command="load" file="$(find practice_6)/config/detection.yaml"/>
+
+    </group>
+
+</launch>

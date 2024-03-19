@@ -1,0 +1,29 @@
+<robot name="vehicle_platform">
+  <!-- Frames -->
+  <link name="base_link" />
+  <link name="lidar_center" />
+  <link name="camera_fr" />
+  <link name="camera_fl" />
+  <!-- Sensor Transforms -->
+
+  <!-- Lidar_center -->
+  <joint name="lidar_center" type="fixed" >
+    <parent link="base_link" />
+    <child link="lidar_center" />
+    <origin xyz="1.02 0 1.51" rpy="-0.02879793 0.0003490659 -0.055" />
+  </joint>
+
+   <!-- Mako Cameras -->
+  <joint name="camera_fr" type="fixed" >
+    <parent link="lidar_center" />
+    <child link="camera_fr" />
+    <origin xyz="1.152 -0.168 -0.747" rpy="-1.378984 0.04415683 -1.7793631" />
+  </joint>
+
+  <joint name="camera_fl" type="fixed" >
+    <parent link="lidar_center" />
+    <child link="camera_fl" />
+    <origin xyz="1.131 0.338 -0.747" rpy="-1.4044664 -0.00261799 -1.422443" />
+  </joint> 
+
+</robot>
