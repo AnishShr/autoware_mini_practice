@@ -44,7 +44,7 @@ class LaneLet2GlobalPlanner():
         self.goal_pos = None
 
         # Publishers
-        self.waypoints_pub = rospy.Publisher('/path', Lane, queue_size=1, latch=True)
+        self.waypoints_pub = rospy.Publisher('path', Lane, queue_size=1, latch=True)
 
         # Subscribers
         rospy.Subscriber("/move_base_simple/goal", PoseStamped, self.goal_callback, queue_size=1)
