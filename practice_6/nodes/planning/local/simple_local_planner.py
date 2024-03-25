@@ -139,7 +139,7 @@ class SimpleLocalPlanner:
                                              local_path_length=local_path_length)
 
         if local_path is None:
-            rospy.logwarn("No local path detected")
+            rospy.logwarn("%s - No local path detected", rospy.get_name())
             return
 
         local_path_buffer = local_path.buffer(stopping_lateral_distance, cap_style="flat")
