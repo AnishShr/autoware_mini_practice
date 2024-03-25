@@ -6,10 +6,9 @@ import numpy as np
 from autoware_msgs.msg import Lane, DetectedObjectArray, Waypoint
 from geometry_msgs.msg import PoseStamped, TwistStamped, Vector3, Vector3Stamped
 from shapely.geometry import LineString, Point, Polygon
-from shapely import prepare, intersects, intersection
+from shapely import prepare, intersects
 from tf2_geometry_msgs import do_transform_vector3
 from scipy.interpolate import interp1d
-from numpy.lib.recfunctions import unstructured_to_structured
 
 class SimpleLocalPlanner:
 
