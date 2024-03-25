@@ -219,7 +219,7 @@ class SimpleLocalPlanner:
 
         # Initializing the variables required for publishing local path
         target_velocity = 0.0
-        closest_distance = 0.0   
+        closest_object_distance = 0.0   
         closest_object_velocity = 0.0
         stopping_point_distance = 0.0
         local_path_blocked = False
@@ -252,7 +252,7 @@ class SimpleLocalPlanner:
             
             target_velocity = target_velocities[min_target_vel_id]
             closest_object_velocity = obstacle_velocities[min_target_vel_id]
-            closest_distance = distances[min_target_vel_id] - current_pose_to_car_front
+            closest_object_distance = distances[min_target_vel_id] - current_pose_to_car_front
             stopping_point_distance = distances[min_target_vel_id] - object_braking_distances[min_target_vel_id]
 
         else:
@@ -266,7 +266,7 @@ class SimpleLocalPlanner:
         self.publish_local_path_wp(local_path_waypoints=local_path_waypoints, 
                                 stamp = msg.header.stamp, 
                                 output_frame = output_frame, 
-                                closest_object_distance=closest_distance, 
+                                closest_object_distance=closest_object_distance, 
                                 closest_object_velocity=closest_object_velocity, 
                                 local_path_blocked=local_path_blocked, 
                                 stopping_point_distance=stopping_point_distance)
