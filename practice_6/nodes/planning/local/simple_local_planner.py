@@ -6,9 +6,10 @@ import numpy as np
 from autoware_msgs.msg import Lane, DetectedObjectArray, Waypoint
 from geometry_msgs.msg import PoseStamped, TwistStamped, Vector3, Vector3Stamped
 from shapely.geometry import LineString, Point, Polygon
-from shapely import prepare, intersects
+from shapely import prepare, intersects, intersection
 from tf2_geometry_msgs import do_transform_vector3
 from scipy.interpolate import interp1d
+from numpy.lib.recfunctions import unstructured_to_structured
 
 class SimpleLocalPlanner:
 
@@ -166,7 +167,7 @@ class SimpleLocalPlanner:
             object_polygon = Polygon(object_points)
             object_polygons.append(object_polygon)
 
-            min_dist = 100000000
+            min_dist = float('inf')
             for coords in object_polygon.exterior.coords:
                 d = local_path.project(Point(coords))
                 if d < min_dist:
