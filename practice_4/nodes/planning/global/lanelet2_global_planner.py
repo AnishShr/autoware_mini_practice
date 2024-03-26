@@ -50,7 +50,7 @@ class LaneLet2GlobalPlanner():
         rospy.Subscriber("/move_base_simple/goal", PoseStamped, self.goal_callback, queue_size=1)
         rospy.Subscriber("/localization/current_pose", PoseStamped, self.current_pose_callback, queue_size=1)
     
-    def lanelet_sequence_to_waypoints(self, lanelet_sequence, goal_pos):
+    def lanelet_sequence_to_waypoints(self, lanelet_sequence):
         """
         Inputs: 
             - Lanelet sequence leading to the final waypoint in corresponding lanelet
@@ -58,7 +58,7 @@ class LaneLet2GlobalPlanner():
 
         output: List of waypoints to follow without waypoints overlapping
         """
-
+        goal_pos = self.goal_pos
         waypoints_list = []        
         
         for lanelet in lanelet_sequence:
@@ -77,9 +77,13 @@ class LaneLet2GlobalPlanner():
                 waypoint.pose.pose.position.z = point.z
                 waypoint.twist.twist.linear.x = speed
 
-                if waypoint not in waypoints_list:
+                if len(waypoints_list) == 0:
                     waypoints_list.append(waypoint)
-        
+                else:
+                    if waypoint.pose.pose.position.x != waypoints_list[-1].pose.pose.position.x and \
+                       waypoint.pose.pose.position.y != waypoints_list[-1].pose.pose.position.y:
+                        waypoints_list.append(waypoint)
+
         waypoints_array = np.array([(wp.pose.pose.position.x, wp.pose.pose.position.y, wp.pose.pose.position.z) for wp in waypoints_list])
         waypoints_linestring = LineString(waypoints_array[:, :2])
         
@@ -93,6 +97,8 @@ class LaneLet2GlobalPlanner():
 
             if d_wp_from_path_start < d_goal_from_path_start:
                 waypoints_filtered.append(wp)
+            else:
+                break
         
         # Getting the z coordinate of the closest waypoint to update the goal pose
         # -------------------------------------------------------------------------------------
@@ -117,9 +123,8 @@ class LaneLet2GlobalPlanner():
         goal_wp.pose.pose.position.z = closest_z
         waypoints_filtered.append(goal_wp)
 
-        self.goal_pos[0] = goal_point_in_path.x
-        self.goal_pos[1] = goal_point_in_path.y
-        self.goal_pos[2] = closest_z
+        goal_pos = Point(goal_point_in_path.x, goal_point_in_path.y, closest_z)
+        self.goal_pos = goal_pos
 
         return waypoints_filtered
             
@@ -147,8 +152,8 @@ class LaneLet2GlobalPlanner():
                     msg.pose.orientation.w, msg.header.frame_id)
         
         # Converting PoseStamped msg to BasicPoint2d geometry type
-        self.goal_pos = np.array([msg.pose.position.x, msg.pose.position.y, msg.pose.position.z])
-        goal_point = BasicPoint2d(self.goal_pos[0], self.goal_pos[1])
+        self.goal_pos = Point(msg.pose.position.x, msg.pose.position.y, msg.pose.position.z)
+        goal_point = BasicPoint2d(self.goal_pos.x, self.goal_pos.y)
 
         # get start and end lanelets
         start_lanelet = findNearest(self.lanelet2_map.laneletLayer, self.current_location, 1)[0][1]
@@ -166,9 +171,8 @@ class LaneLet2GlobalPlanner():
         path_no_lane_change = path.getRemainingLane(start_lanelet)
 
         # Getting the list of waypoints
-        goal_pos = Point(self.goal_pos)
-        waypoints = self.lanelet_sequence_to_waypoints(lanelet_sequence=path_no_lane_change,
-                                                       goal_pos=goal_pos)  
+        # goal_pos = Point(self.goal_pos)
+        waypoints = self.lanelet_sequence_to_waypoints(lanelet_sequence=path_no_lane_change)  
         # Publishing the list of waypoints in the Lane msg      
         self.create_and_publish_lane_msg(waypoints)
 
@@ -182,7 +186,7 @@ class LaneLet2GlobalPlanner():
             return
         
         current_pos = np.array([msg.pose.position.x, msg.pose.position.y])
-        dist_ego_from_goal = np.sqrt((goal_pos[0]-current_pos[0])**2 + (goal_pos[1]-current_pos[1])**2)
+        dist_ego_from_goal = np.sqrt((goal_pos.x-current_pos[0])**2 + (goal_pos.y-current_pos[1])**2)
         
         # if the ego vehicle is close to the goal, stop the vehicle
         if dist_ego_from_goal < self.distance_to_goal_limit:
