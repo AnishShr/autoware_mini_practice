@@ -76,12 +76,11 @@ class LaneLet2GlobalPlanner():
                 waypoint.pose.pose.position.y = point.y
                 waypoint.pose.pose.position.z = point.z
                 waypoint.twist.twist.linear.x = speed
-
+                
                 if len(waypoints_list) == 0:
                     waypoints_list.append(waypoint)
                 else:
-                    if waypoint.pose.pose.position.x != waypoints_list[-1].pose.pose.position.x and \
-                       waypoint.pose.pose.position.y != waypoints_list[-1].pose.pose.position.y:
+                    if waypoint.pose != waypoints_list[-1].pose:
                         waypoints_list.append(waypoint)
 
         waypoints_array = np.array([(wp.pose.pose.position.x, wp.pose.pose.position.y, wp.pose.pose.position.z) for wp in waypoints_list])
