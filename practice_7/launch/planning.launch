@@ -1,0 +1,34 @@
+<?xml version="1.0"?>
+<launch>
+
+    <arg name="lanelet2_map_name"       default="tartu_demo.osm" />
+    <arg name="speed_limit"             default="40"        doc="max speed limit for car" />
+
+    <group ns="planning">
+
+        <!-- Lanelet2 map visualizer -->
+        <node pkg="practice_7" type="lanelet2_map_visualizer.py" name="lanelet2_map_visualizer" output="screen" required="true">
+            <param name="lanelet2_map_name" value="$(find common)/data/maps/$(arg lanelet2_map_name)" />
+        </node>
+
+        <!-- Lanelet2 global planner -->
+        <node pkg="practice_7" type="lanelet2_global_planner.py" name="lanelet2_global_planner" output="screen" required="true">
+            <param name="lanelet2_map_name" value="$(find common)/data/maps/$(arg lanelet2_map_name)" />
+            <param name="speed_limit"       value="$(arg speed_limit)" />
+        </node>
+
+        <!-- Global path visualizer -->
+        <node pkg="practice_7" type="global_path_visualizer.py" name="global_path_visualizer" output="screen" required="true"/>
+
+        <!-- Local planner -->
+        <node pkg="practice_7" type="simple_local_planner.py" name="simple_local_planner" output="screen" required="true" >
+            <param name="lanelet2_map_name" value="$(find common)/data/maps/$(arg lanelet2_map_name)" />
+        </node>
+        <node pkg="practice_7" type="local_path_visualizer.py" name="local_path_visualizer" output="screen" required="true"/>
+
+        <!-- Config -->
+        <rosparam command="load" file="$(find practice_7)/config/planning.yaml" />
+
+    </group>
+
+</launch>

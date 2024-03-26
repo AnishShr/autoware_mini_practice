@@ -1,0 +1,16 @@
+<?xml version="1.0"?>
+<launch>
+    
+    <group ns="control">
+
+        <!-- Follower -->
+
+        <node pkg="practice_7" type="pure_pursuit_follower.py" name="pure_pursuit_follower" output="screen" required="true" >
+            <remap from="path" to="/planning/local_path" />
+        </node>
+
+        <rosparam command="load" file="$(find practice_7)/config/control.yaml"/>
+
+    </group>
+
+</launch>

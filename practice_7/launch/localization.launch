@@ -1,0 +1,12 @@
+<?xml version="1.0"?>
+<launch>
+
+    <group ns="localization">
+
+        <node pkg="practice_7" type="localizer.py" name="localizer" output="screen" required="true" />
+
+        <rosparam command="load" file="$(find practice_7)/config/localization.yaml" />
+
+    </group>
+
+</launch>

@@ -1,0 +1,23 @@
+<?xml version="1.0"?>
+<launch>
+
+    <arg name="lanelet2_map_name"       default="tartu_demo.osm" />
+    <arg name="use_detection"           default="false" />
+    <arg name="tfl_detector"            default="none"  doc="mqtt, camera, mqtt_camera_fusion" />
+
+    <group ns="detection">
+    
+        <include if="$(arg use_detection)" file="$(find practice_7)/launch/obstacle_detection.launch" />
+
+        <node unless="$(arg use_detection)" pkg="practice_7" type="empty_obstacle_publisher.py" name="empty_obstacle_publisher" output="screen" required="true" />
+
+        <include file="$(find practice_7)/launch/traffic_light_detection.launch" >
+            <arg name="tfl_detector" value="$(arg tfl_detector)" />
+            <arg name="lanelet2_map_name" value="$(arg lanelet2_map_name)" />
+        </include>
+
+        <rosparam command="load" file="$(find practice_7)/config/detection.yaml"/>
+
+    </group>
+
+</launch>
