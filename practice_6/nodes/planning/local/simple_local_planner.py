@@ -57,8 +57,6 @@ class SimpleLocalPlanner:
             rospy.loginfo("%s - Empty global path received", rospy.get_name())
 
         else:
-            self.goal_point = Vector3Stamped()
-            self.goal_point.vector = msg.waypoints[-1].pose.pose.position
 
             waypoints_xyz = np.array([(w.pose.pose.position.x, w.pose.pose.position.y, w.pose.pose.position.z) for w in msg.waypoints])
             # convert waypoints to shapely linestring
@@ -112,15 +110,14 @@ class SimpleLocalPlanner:
 
             transform_timeout = self.transform_timeout
 
-            goal_point = self.goal_point
             braking_safety_distance_goal = self.braking_safety_distance_goal
 
         if global_path_linestring is None or \
            global_path_distances is None or \
            distance_to_velocity_interpolator is None or \
            current_speed is None or \
-           current_position is None or \
-           goal_point is None:
+           current_position is None :
+           
             
             self.publish_local_path_wp(local_path_waypoints=[],
                                        stamp=msg.header.stamp,
@@ -131,7 +128,6 @@ class SimpleLocalPlanner:
 
         d_ego_from_path_start = global_path_linestring.project(current_position)
         lane_target_velocity = distance_to_velocity_interpolator(d_ego_from_path_start)
-        current_speed = min(lane_target_velocity, current_speed)
 
         local_path = self.extract_local_path(global_path_linestring=global_path_linestring,
                                              global_path_distances=global_path_distances,
@@ -140,16 +136,20 @@ class SimpleLocalPlanner:
 
         if local_path is None:
             rospy.logwarn("%s - No local path detected", rospy.get_name())
+            self.publish_local_path_wp(local_path_waypoints=[],
+                                       stamp=msg.header.stamp,
+                                       output_frame=output_frame,
+                                       )
             return
 
         local_path_buffer = local_path.buffer(stopping_lateral_distance, cap_style="flat")
         prepare(local_path_buffer)
 
-        # Initializing empty lists to store the detected object polygons, distances and velocities for later use
+        # Initializing empty lists to store the detected object's distances and velocities for later use
         # to compute the target velocities
-        object_polygons = []
         object_distances = []
         object_velocities = []
+        object_braking_distances = []
         
         try:
             transform = self.tf_buffer.lookup_transform(target_frame='base_link',
@@ -160,62 +160,51 @@ class SimpleLocalPlanner:
         except (TransformException, rospy.ROSTimeMovedBackwardsException) as e:
             rospy.logwarn("%s - %s", rospy.get_name(), e)
             transform = None
-            return
 
         for object in msg.objects:
             object_points = [(point.x, point.y) for point in object.convex_hull.polygon.points]
             object_polygon = Polygon(object_points)
-            object_polygons.append(object_polygon)
-
+            
+            d = float('inf')
             min_dist = float('inf')
+            
             for coords in object_polygon.exterior.coords:
-                d = local_path.project(Point(coords))
-                if d < min_dist:
-                    min_dist = d
-                
-            object_distances.append(min_dist)
-            object_velocities.append(object.velocity.linear)
-        
-        # Another set of lists to store the detected obstacle distances (closest distance to base_link),
-        # obstacle velocity and the braking distances to the obstacle depending on the obstacle
-        # obstacle --> detected object or goal point
-        obstacle_distances = []
-        obstacle_velocities = []
-        object_braking_distance = []
+                if intersects(local_path_buffer, Point(coords)):
+                    d = local_path.project(Point(coords))
+                    d = min(min_dist, d)
+            
+            # If the projected distance between the ego vehicle and the obstacle(intersecting with the local path) 
+            # coordinate is less than the local_path_length, add it as an obstacle object in the list/s.
+            if d < local_path_length:
 
-        for id, object_polygon in enumerate(object_polygons):
-            if intersects(local_path_buffer, object_polygon):
+                object_velocity = object.velocity.linear
 
-                # project object velocity to base_link frame to get longitudinal speed
-                # in case there is no transform assume the object is not moving
                 if transform is not None:
-                    vector3_stamped = Vector3Stamped(vector=object_velocities[id])
+                    vector3_stamped = Vector3Stamped(vector=object_velocity)
                     velocity = do_transform_vector3(vector3_stamped, transform).vector
                 else:
                     velocity = Vector3()
-
+                
                 transformed_velocity = velocity.x
+                
+                object_distances.append(d)
+                object_velocities.append(transformed_velocity)
+                object_braking_distances.append(braking_safety_distance_obstacle)
 
-                obstacle_distances.append(object_distances[id])
-                obstacle_velocities.append(transformed_velocity)
-
-                object_braking_distance.append(braking_safety_distance_obstacle)
-
-        # Retrieving the goal point and projecting into local path to get the distance from base_link
-        goal_coord = [(goal_point.vector.x, goal_point.vector.y)]
-        dist_to_goal_point = local_path.project(Point(goal_coord))
+        # distance from ego vehicle to the goal point
+        dist_to_goal_point = global_path_distances[-1] - d_ego_from_path_start
 
         # If the goal point is in the local path, add it as an obstacle in the lists
-        # Goal point is also considered an obstacle with zero velocity, and has a braking distance of zero
+        # Goal point is also considered an obstacle with zero velocity, and has a safety braking distance of zero
         if dist_to_goal_point < local_path_length:
-            obstacle_distances.append(dist_to_goal_point)
-            obstacle_velocities.append(0)
-            object_braking_distance.append(braking_safety_distance_goal)
+            object_distances.append(dist_to_goal_point)
+            object_velocities.append(0)
+            object_braking_distances.append(braking_safety_distance_goal)
         
         # converting obstacle relevant lists to numpy arrays for easy computations
-        distances = np.array(obstacle_distances)
-        velocities = np.array(obstacle_velocities)
-        object_braking_distances = np.array(object_braking_distance)
+        object_distances = np.array(object_distances)
+        object_velocities = np.array(object_velocities)
+        object_braking_distances = np.array(object_braking_distances)
 
         # Initializing the variables required for publishing local path
         target_velocity = 0.0
@@ -227,18 +216,19 @@ class SimpleLocalPlanner:
         # If there is no obstacle in local path
         # i.e., neither obstacle or goal point, then drive in the global path maintaining max target velocity permitted by lane restrictions
         # Else compute appropriate target velocities and select the appropriate velocity based on which obstacle creates the minimum one 
-        if len(obstacle_distances) > 0:
+        if len(object_distances) > 0:
             
             # computing target velocities
-            target_distances = distances - current_pose_to_car_front - object_braking_distances - braking_reaction_time*np.abs(velocities)
-
+            target_distances = object_distances - current_pose_to_car_front - object_braking_distances - braking_reaction_time*np.abs(object_velocities)
+            
             # Replacing all negative velocities with zero
-            velocities[velocities < 0] = 0
-            target_velocities_squared = velocities**2 + 2*default_deceleration*target_distances
+            object_velocities[object_velocities < 0] = 0
+            target_velocities_squared = object_velocities**2 + 2*default_deceleration*target_distances
+            
             # Making sure there is no negative values inside the square root
             target_velocities_squared[target_velocities_squared < 0] = 0
-
             target_velocities = np.sqrt(target_velocities_squared)
+
             # If the target velocity exceeds the target velocity permitted by lane restrictions,
             # limit the target velocity to the lane's max permitted velocity
             target_velocities[target_velocities > lane_target_velocity] = lane_target_velocity
@@ -251,16 +241,18 @@ class SimpleLocalPlanner:
                 local_path_blocked = True
             
             target_velocity = target_velocities[min_target_vel_id]
-            closest_object_velocity = obstacle_velocities[min_target_vel_id]
-            closest_object_distance = distances[min_target_vel_id] - current_pose_to_car_front
-            stopping_point_distance = distances[min_target_vel_id] - object_braking_distances[min_target_vel_id]
+            
+            closest_object_velocity = object_velocities[min_target_vel_id]
+            closest_object_distance = object_distances[min_target_vel_id] - current_pose_to_car_front
+            
+            stopping_point_distance = object_distances[min_target_vel_id] - object_braking_distances[min_target_vel_id]
 
         else:
             target_velocity = lane_target_velocity
 
         # Get the local waypoints from the local path and target velocity depending on the detected obstacles
         local_path_waypoints = self.convert_local_path_to_waypoints(local_path=local_path,
-                                                            target_velocity=target_velocity)
+                                                                    target_velocity=target_velocity)
         
         # Publish the local waypoints
         self.publish_local_path_wp(local_path_waypoints=local_path_waypoints, 
