@@ -97,20 +97,7 @@ class SimpleLocalPlanner:
             current_speed = self.current_speed
             current_position = self.current_position
 
-            local_path_length = self.local_path_length
-            output_frame = self.output_frame
-
-            stopping_lateral_distance = self.stopping_lateral_distance
-
-            default_deceleration = self.default_deceleration
-
-            current_pose_to_car_front = self.current_pose_to_car_front
-            braking_safety_distance_obstacle = self.braking_safety_distance_obstacle
-            braking_reaction_time = self.braking_reaction_time
-
-            transform_timeout = self.transform_timeout
-
-            braking_safety_distance_goal = self.braking_safety_distance_goal
+        
 
         if global_path_linestring is None or \
            global_path_distances is None or \
@@ -125,6 +112,18 @@ class SimpleLocalPlanner:
                                        )
             return
         
+        local_path_length = self.local_path_length
+        output_frame = self.output_frame
+
+        stopping_lateral_distance = self.stopping_lateral_distance
+
+        default_deceleration = self.default_deceleration
+        current_pose_to_car_front = self.current_pose_to_car_front
+        braking_safety_distance_obstacle = self.braking_safety_distance_obstacle
+        braking_safety_distance_goal = self.braking_safety_distance_goal
+        braking_reaction_time = self.braking_reaction_time
+
+        transform_timeout = self.transform_timeout
 
         d_ego_from_path_start = global_path_linestring.project(current_position)
         lane_target_velocity = distance_to_velocity_interpolator(d_ego_from_path_start)
