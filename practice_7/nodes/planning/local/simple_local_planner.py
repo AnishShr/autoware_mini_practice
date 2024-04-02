@@ -194,7 +194,6 @@ class SimpleLocalPlanner:
                 object_distances.append(d)
                 object_velocities.append(transformed_velocity)
                 object_braking_distances.append(self.braking_safety_distance_obstacle)
-        
 
         if self.red_tfl_id is not None:
             red_tfl_id = self.red_tfl_id
@@ -217,8 +216,6 @@ class SimpleLocalPlanner:
                     object_braking_distances.append(braking_distance_tfl_line)
                 else:
                     rospy.logwarn_throttle(3.0, f"{rospy.get_name()} - ignore red traffic lights, deceleration: {current_deceleration}")
-
-
 
         # distance from ego vehicle to the goal point
         dist_to_goal_point = global_path_distances[-1] - d_ego_from_path_start
