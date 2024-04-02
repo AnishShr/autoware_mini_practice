@@ -1,0 +1,4 @@
+pure_pursuit_follower:
+  output_frame: map
+  lookahead_distance: 6.0
+  wheel_base: 2.789
