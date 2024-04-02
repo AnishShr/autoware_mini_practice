@@ -204,11 +204,9 @@ class SimpleLocalPlanner:
                 intersection_point = intersection_geometry.centroid
 
                 d_red_tfl_line = local_path.project(intersection_point)
-                
-                vel_red_tfl_line = 0
-                braking_distance_tfl_line = self.braking_safety_distance_stopline
+                vel_red_tfl_line = 0        # obstacle vlocity == 0 for stoplines
 
-                current_deceleration = (current_speed**2)/(2*(d_red_tfl_line - self.braking_safety_distance_stopline))        # obstacle vlocity == 0
+                current_deceleration = (current_speed**2)/(2*(d_red_tfl_line - self.braking_safety_distance_stopline))        
 
                 if current_deceleration < self.braking_safety_distance_stopline:
                     object_distances.append(d_red_tfl_line)
