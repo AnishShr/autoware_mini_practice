@@ -211,7 +211,7 @@ class SimpleLocalPlanner:
                 if current_deceleration < self.braking_safety_distance_stopline:
                     object_distances.append(d_red_tfl_line)
                     object_velocities.append(vel_red_tfl_line)
-                    object_braking_distances.append(braking_distance_tfl_line)
+                    object_braking_distances.append(self.braking_safety_distance_stopline)
                 else:
                     rospy.logwarn_throttle(3.0, f"{rospy.get_name()} - ignore red traffic lights, deceleration: {current_deceleration}")
 
