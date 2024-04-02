@@ -139,7 +139,7 @@ class SimpleLocalPlanner:
         except (TransformException, rospy.ROSTimeMovedBackwardsException) as e:
             rospy.logwarn("%s - %s", rospy.get_name(), e)
             transform = None
-            # return
+            
 
         for object in msg.objects:
             object_points = [(point.x, point.y) for point in object.convex_hull.polygon.points]
