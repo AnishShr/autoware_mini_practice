@@ -36,8 +36,6 @@ class SimpleLocalPlanner:
         self.tf_buffer = Buffer()
         self.tf_listener = TransformListener(self.tf_buffer)
 
-        self.goal_point = None
-
         # Publishers
         self.local_path_pub = rospy.Publisher('local_path', Lane, queue_size=1, tcp_nodelay=True)
 
