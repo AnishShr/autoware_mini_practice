@@ -114,10 +114,6 @@ class CameraTrafficLightDetector:
             for id, linestring in self.tfl_stoplines.items():
                 if local_path.intersects(linestring):
                     stoplines_on_path.append(id)
-            
-            # if len(stoplines_on_path) > 0:
-            #     print(stoplines_on_path)
-            #     print("------------------------------------")
 
         else:
             stoplines_on_path = None
@@ -146,31 +142,19 @@ class CameraTrafficLightDetector:
                                                         source_frame=transform_from_frame,
                                                         time=camera_image_msg.header.stamp,
                                                         timeout=rospy.Duration(self.transform_timeout))
-            # print(f"from_frame: {self.transform_from_frame}")
-            # print(f"to_frame: {camera_image_msg.header.frame_id}")
-            # print(transform)
 
         except (TransformException, rospy.ROSTimeMovedBackwardsException) as e:
             rospy.logwarn("%s - %s", rospy.get_name(), e)
             return 
 
         image = self.bridge.imgmsg_to_cv2(camera_image_msg,  desired_encoding='rgb8')
-        # image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
         
         if self.rectify_image:
             self.camera_model.rectifyImage(image, image)
-
-        # tfl_img_msg = self.bridge.cv2_to_imgmsg(image)       
-        # self.tfl_roi_pub.publish(tfl_img_msg)
-
-        # print(f"stoplines on path: {stoplines_on_path}")
         
         rois = self.calculate_roi_coordinates(stoplines_on_path=stoplines_on_path,
                                               transform=transform)
-        # print(f"rois: {rois}")
-
-        # classes = ["green", "yellow", "red", "unknown"]
-        # print(CLASSIFIER_RESULT_TO_STRING)
+        
         classes = []
         scores = []
         roi_images = None
@@ -179,14 +163,8 @@ class CameraTrafficLightDetector:
             roi_images = self.create_roi_images(image=image, rois=rois)
             predictions = self.model.run(None, {'conv2d_1_input': roi_images})[0]
 
-            # print(predictions)
-            
-            # best_index = np.argmax(predictions)
-            # print(classes[best_index])
-
             for prediction in predictions:
                 best_index = np.argmax(prediction)
-                # classes.append(CLASSIFIER_RESULT_TO_STRING[best_index])
                 classes.append(best_index)
                 scores.append(prediction[best_index])
 
@@ -206,19 +184,11 @@ class CameraTrafficLightDetector:
             
             self.tfl_status_pub.publish(tfl_status)
 
-        # if roi_images is not None:
-        #     for image in roi_images:
-        #         self.publish_roi_images(image=image,
-        #                                 rois=rois,
-        #                                 classes=classes,
-        #                                 scores=scores,
-        #                                 image_time_stamp=camera_image_msg.header.stamp)
         self.publish_roi_images(image=image,
                                 rois=rois,
                                 classes=classes,
                                 scores=scores,
                                 image_time_stamp=camera_image_msg.header.stamp)
-        # print("-----------------------------------------")
 
 
     def calculate_roi_coordinates(self, stoplines_on_path, transform):
@@ -235,10 +205,8 @@ class CameraTrafficLightDetector:
 
                     # TODO
                     point_camera = do_transform_point(PointStamped(point=point_map), transform).point
-                    # print(point_camera)
                     u, v = self.camera_model.project3dToPixel((point_camera.x, point_camera.y, point_camera.z))
-                    # print(u, v)
-
+                    
                     if u < 0 or u >= self.camera_model.width or v < 0 or v >= self.camera_model.height:
                         break
 
@@ -251,27 +219,20 @@ class CameraTrafficLightDetector:
                     us.extend([u + extent, u - extent])
                     vs.extend([v + extent, v - extent])
 
-                # print(us)
-                # print(vs)
-
                 # not all signals were in image, take next traffic light
                 if len(us) < 6:
                     continue
                 # round and clip against image limits
                 us = np.clip(np.round(np.array(us)), 0, self.camera_model.width - 1)
                 vs = np.clip(np.round(np.array(vs)), 0, self.camera_model.height - 1)
-
-                # print("after clipping")
-                # print(us)
-                # print(vs)
+                
                 # extract one roi per traffic light
                 min_u = int(np.min(us))
                 max_u = int(np.max(us))
                 min_v = int(np.min(vs))
                 max_v = int(np.max(vs))
+                
                 # check if roi is too small
-                # print(max_u - min_u)
-                # print(self.min_roi_width)
                 if max_u - min_u < self.min_roi_width:
                     continue
                 rois.append([int(stoplineId), plId, min_u, max_u, min_v, max_v])
@@ -283,19 +244,15 @@ class CameraTrafficLightDetector:
         roi_images = []
 
         for _, _, min_u, max_u, min_v, max_v in rois:
-            # TODO
-            # print(min_u, max_u, min_v, max_v)
             roi_crop = image[min_v:max_v, min_u:max_u]
-            # print(roi_crop.shape)
             roi_crop = cv2.resize(roi_crop, (128, 128), interpolation=cv2.INTER_LINEAR)
-            # print(roi_crop.shape)
             roi_images.append(roi_crop.astype(np.float32))
 
         return np.stack(roi_images, axis=0) / 255.0        
 
 
     def publish_roi_images(self, image, rois, classes, scores, image_time_stamp):
-        # print(image.shape)
+        
         # add rois to image
         if len(rois) > 0:
             for cl, score, (_, _, min_u, max_u, min_v, max_v) in zip(classes, scores, rois):
@@ -316,12 +273,10 @@ class CameraTrafficLightDetector:
                     color=CLASSIFIER_RESULT_TO_COLOR[cl], 
                     thickness=2)
 
-        image = cv2.resize(image, None, fx=0.5, fy=0.5, interpolation=cv2.INTER_LINEAR)
-        # image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+        image = cv2.resize(image, None, fx=0.5, fy=0.5, interpolation=cv2.INTER_LINEAR)        
         img_msg = self.bridge.cv2_to_imgmsg(image, encoding='rgb8')
-        # img_msg = self.bridge.cv2_to_imgmsg(image)
-        
         img_msg.header.stamp = image_time_stamp
+        
         self.tfl_roi_pub.publish(img_msg)
 
 
