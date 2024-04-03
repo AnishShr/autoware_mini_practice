@@ -6,21 +6,14 @@
     <arg name="local_planner"           default="velocity"      doc="none, velocity" />
     <arg name="use_path_smoothing"      default="true" />
     <arg name="waypoints_file"          default="waypoints_erm_utm_1m.csv" />
-    <arg name='map_name'                default='tartu_demo_noheight' />
-    <arg name="lanelet2_map_name"       default="$(arg map_name).osm" />
+    <arg name="lanelet2_map_name"       default="tartu_demo_noheight.osm" />
     <arg name="detector"                default="sim"           doc="usually sim" />
     <arg name="tfl_detector"            default="none"          doc="mqtt" />
     <arg name="tracker"                 default="none"          doc="none, ema"/>
     <arg name="predictor"               default="none"          doc="none, naive"/>
 
-    <!-- Localization -->
-    <include file="$(find practice_8)/launch/localization.launch">
-        <arg name="localizer"           value="simulation" />
-        <arg name="map_name"            value="$(arg map_name)" />
-    </include>
-
     <!-- Detection -->
-    <include file="$(find practice_8)/launch/detection.launch">
+    <include file="$(find autoware_mini)/launch/detection.launch">
         <arg name="detector"            value="$(arg detector)" />
         <arg name="tfl_detector"        value="$(arg tfl_detector)" />
         <arg name="lanelet2_map_name"   value="$(arg lanelet2_map_name)" />
@@ -29,7 +22,7 @@
     </include>
 
     <!-- Planning -->
-    <include file="$(find practice_8)/launch/planning.launch">
+    <include file="$(find autoware_mini)/launch/planning.launch">
         <arg name="global_planner"      value="$(arg global_planner)" />
         <arg name="local_planner"       value="$(arg local_planner)" />
         <arg name="use_path_smoothing"  value="$(arg use_path_smoothing)" />
@@ -38,15 +31,28 @@
     </include>
 
     <!-- Control -->
-    <include file="$(find practice_8)/launch/control.launch">
+    <include file="$(find autoware_mini)/launch/control.launch">
         <arg name="follower"        value="$(arg follower)" />
     </include>
 
     <!-- Bicycle_model simulator -->
-    <include file="$(find practice_8)/launch/platform/simulation.launch" />
+    <include file="$(find autoware_mini)/launch/platform/simulation.launch" />
 
     <!-- Rviz -->
-    <include file="$(find practice_8)/launch/dashboard.launch" />
-    <node type="rviz" name="rviz" pkg="rviz" args="-d $(find practice_8)/rviz/autoware_mini.rviz" required="true" />
+    <include file="$(find autoware_mini)/launch/dashboard.launch" />
+    <node type="rviz" name="rviz" pkg="rviz" args="-d $(find autoware_mini)/rviz/autoware_mini.rviz" required="true" />
+
+    <!-- Localization params -->
+    <rosparam command="load" file="$(find autoware_mini)/config/localization.yaml" ns="localization" />
+
+    <!-- Patch controller params because simulation does not have delay -->
+    <rosparam param="simulate_cmd_delay" ns="control/pure_pursuit_follower">0.0</rosparam>
+    <rosparam param="simulate_cmd_delay" ns="control/stanley_follower">0.0</rosparam>
+
+    <!-- Make it possible to use Carla town maps in bicycle simulation -->
+    <group if="$(eval 'town' in lanelet2_map_name.lower())">
+        <param name="/localization/utm_origin_lat" type="double" value="0.0" />
+        <param name="/localization/utm_origin_lon" type="double" value="0.0" />
+    </group>
 
 </launch>

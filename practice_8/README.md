@@ -41,23 +41,14 @@ If `autoware_mini_ws` workspace is sourced in the terminal, then building anothe
     /home/user/autoware_mini_practice/devel:/home/user/autoware_mini_ws/devel:/opt/ros/noetic
     ```
 
-#### 2. In autoware_mini checkout branch `initialpose_carla`
 
-In this branch there is a small code update that lets us change the ego vehicle position using 2D pose estimate. It can be useful if you need to restart the Carla or run your nodes again and need to place your vehicle where you were previously stuck.
-
-    ```
-    cd ~/autoware_mini_ws/src/autoware_mini
-    git checkout initialpose_carla
-    ```
-
-
-## 3. Run CARLA simulation
+## 2. Run CARLA simulation
 
 [Launching CARLA simulation](https://gitlab.cs.ut.ee/autonomous-driving-lab/autoware_mini#launch-instructions).
 
-1. Run Carla. Brackets indicate optional settings when running CARLA. Brackets themselves are not needed!
+1. Run Carla. 
     ```
-    $CARLA_ROOT/CarlaUE4.sh (-prefernvidia) (-quality-level=Low) (-RenderOffScreen)
+    $CARLA_ROOT/CarlaUE4.sh -prefernvidia -quality-level=Low -RenderOffScreen
     ```
 2. From `practice_8` launch `start_carla.launch`
     ```

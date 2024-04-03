@@ -51,7 +51,7 @@
 
         <!-- Config -->
         <rosparam command="load" file="$(find autoware_mini)/config/planning.yaml" />
-        <rosparam command="load" file="$(find practice_8)/config/planning.yaml"/>
+        <rosparam command="load" file="$(find practice_8)/config/planning.yaml" />
 
     </group>
 

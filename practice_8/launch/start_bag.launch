@@ -13,8 +13,7 @@
     <arg name="use_path_smoothing"      default="true" />
     <arg name="tracker"                 default="ema"           doc="none, ema"/>
     <arg name="predictor"               default="none"          doc="none, naive"/>
-    <arg name='map_name'                default='tartu_demo' />
-    <arg name="lanelet2_map_name"       default="$(arg map_name).osm" />
+    <arg name="lanelet2_map_name"       default="tartu_demo.osm" />
     <arg name="use_tf"                  default="true"          doc="replaces tf-s in bag with the current ones"/>
     <arg name="use_localization"        default="$(arg use_tf)" doc="replace localization topics"/>
     <arg name="use_detection"           default="true"          doc="replace object detection topics"/>
@@ -87,7 +86,6 @@
     <!-- Localization -->
     <include if="$(arg use_localization)" file="$(find autoware_mini)/launch/localization.launch">
         <arg name="localizer"       value="$(arg localizer)" />
-        <arg name="map_name"        value="$(arg map_name)" />
     </include>
 
     <!-- Detection -->

@@ -13,19 +13,17 @@
     <arg name="local_planner"           default="velocity"          doc="velocity, none"/>
     <arg name="use_path_smoothing"      default="true" />
     <arg name="waypoints_file"          default="waypoints_erm_utm_1m.csv" />
-    <arg name='map_name'                default='tartu_demo' />
-    <arg name="lanelet2_map_name"       default="$(arg map_name).osm" />
+    <arg name="lanelet2_map_name"       default="tartu_demo.osm" />
     <arg name="max_speed"               default="40" />
     <arg name="more_visualizations"     default="false"             doc="By default visualize only the final detections" />
-
+    
     <!-- Localization -->
-    <include file="$(find practice_8)/launch/localization.launch">
+    <include file="$(find autoware_mini)/launch/localization.launch">
         <arg name="localizer"           value="$(arg localizer)" />
-        <arg name="map_name"            value="$(arg map_name)" />
     </include>
 
     <!-- Detection -->
-    <include file="$(find practice_8)/launch/detection.launch">
+    <include file="$(find autoware_mini)/launch/detection.launch">
         <arg name="use_lidar_center"    value="$(arg use_lidar_center)" />
         <arg name="use_lidar_front"     value="$(arg use_lidar_front)" />
         <arg name="detector"            value="$(arg detector)" />
@@ -37,7 +35,7 @@
     </include>
 
     <!-- Planning -->
-    <include file="$(find practice_8)/launch/planning.launch">
+    <include file="$(find autoware_mini)/launch/planning.launch">
         <arg name="global_planner"      value="$(arg global_planner)" />
         <arg name="local_planner"       value="$(arg local_planner)" />
         <arg name="use_path_smoothing"  value="$(arg use_path_smoothing)" />
@@ -46,12 +44,12 @@
     </include>
 
     <!-- Control -->
-    <include file="$(find practice_8)/launch/control.launch">
+    <include file="$(find autoware_mini)/launch/control.launch">
         <arg name="follower"        value="$(arg follower)" />
     </include>
 
     <!-- Vehicle -->
-    <include file="$(find practice_8)/launch/platform/lexus.launch" >
+    <include file="$(find autoware_mini)/launch/platform/lexus.launch" >
         <arg name="max_speed"           value="$(arg max_speed)" />
         <arg name="use_lidar_center"    value="$(arg use_lidar_center)" />
         <arg name="use_lidar_front"     value="$(arg use_lidar_front)" />
@@ -61,9 +59,9 @@
     </include>
 
     <!-- Rviz -->
-    <include file="$(find practice_8)/launch/dashboard.launch">
+    <include file="$(find autoware_mini)/launch/dashboard.launch">
         <arg name="driver_status" value="true" />
     </include>
-    <node type="rviz" name="rviz" pkg="rviz" args="-d $(find practice_8)/rviz/autoware_mini.rviz" />
+    <node type="rviz" name="rviz" pkg="rviz" args="-d $(find autoware_mini)/rviz/autoware_mini.rviz" />
 
 </launch>
