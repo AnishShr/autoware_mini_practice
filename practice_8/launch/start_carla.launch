@@ -22,7 +22,7 @@
     <!-- Scenario Runner args -->
     <arg name='use_scenario_runner'     default='false'/>
     <arg name='scenario_runner_path'    default='$(optenv SCENARIO_RUNNER_ROOT)'/>
-    <arg name='scenario_name'           default='FollowLeadingVehicle'/>
+    <arg name='scenario_name'           default=''/>
     <arg name='scenario_file'           default='$(find autoware_mini)/data/scenarios/$(arg map_name)/$(arg scenario_name).xosc'/>
     <arg name='generate_traffic'        default='$(eval not use_scenario_runner)'/>
 
@@ -71,9 +71,7 @@
         <arg name="use_cam"                             value="$(eval 'camera' in tfl_detector)" />
         <arg name="generate_traffic"                    value="$(arg generate_traffic)" />
         <arg name="scenario_runner_path"                value="$(arg scenario_runner_path)" />
-        <arg name="use_scenario_runner"                 value="$(arg use_scenario_runner)" />
         <arg name="scenario_name"                       value="$(arg scenario_name)" />
-        <arg name="scenario_file"                       value="$(arg scenario_file)" />
     </include>
 
     <!-- Rviz -->

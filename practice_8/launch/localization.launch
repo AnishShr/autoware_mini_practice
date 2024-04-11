@@ -9,7 +9,7 @@
 
         <node if="$(eval localizer=='carla')" pkg='autoware_mini' type='carla_localizer.py' name='carla_localizer' output='screen' required="true" />
 
-        <rosparam command="load" file="$(find autoware_mini)/config/localization.yaml" />
+        <rosparam command="load" file="$(find practice_7)/config/localization.yaml" />
 
     </group>
 
