@@ -135,64 +135,63 @@ class CameraTrafficLightDetector:
         with self.lock:
             stoplines_on_path = self.stoplines_on_path
             transform_from_frame = self.transform_from_frame
+        
+        if stoplines_on_path is not None:
+
+            # fetch transform for target frame
+            try:
+                transform = self.tf_buffer.lookup_transform(target_frame=camera_image_msg.header.frame_id,
+                                                            source_frame=transform_from_frame,
+                                                            time=camera_image_msg.header.stamp,
+                                                            timeout=rospy.Duration(self.transform_timeout))
+
+            except (TransformException, rospy.ROSTimeMovedBackwardsException) as e:
+                rospy.logwarn("%s - %s", rospy.get_name(), e)
+                return 
+
+            image = self.bridge.imgmsg_to_cv2(camera_image_msg,  desired_encoding='rgb8')
             
-        # fetch transform for target frame
-        try:
-            transform = self.tf_buffer.lookup_transform(target_frame=camera_image_msg.header.frame_id,
-                                                        source_frame=transform_from_frame,
-                                                        time=camera_image_msg.header.stamp,
-                                                        timeout=rospy.Duration(self.transform_timeout))
+            if self.rectify_image:
+                self.camera_model.rectifyImage(image, image)
+            
+            rois = self.calculate_roi_coordinates(stoplines_on_path=stoplines_on_path,
+                                                  transform=transform)
+            
+            classes = []
+            scores = []
+            tfl_results = []
+            
+            if len(rois) > 0:
 
-        except (TransformException, rospy.ROSTimeMovedBackwardsException) as e:
-            rospy.logwarn("%s - %s", rospy.get_name(), e)
-            return 
+                roi_images = self.create_roi_images(image=image, rois=rois)
+                predictions = self.model.run(None, {'conv2d_1_input': roi_images})[0]
 
-        image = self.bridge.imgmsg_to_cv2(camera_image_msg,  desired_encoding='rgb8')
-        
-        if self.rectify_image:
-            self.camera_model.rectifyImage(image, image)
-        
-        rois = self.calculate_roi_coordinates(stoplines_on_path=stoplines_on_path,
-                                              transform=transform)
-        
-        classes = []
-        scores = []
-        roi_images = None
-        if len(rois) > 0:
+                for prediction in predictions:
+                    best_index = np.argmax(prediction)
+                    classes.append(best_index)
+                    scores.append(prediction[best_index])
 
-            roi_images = self.create_roi_images(image=image, rois=rois)
-            predictions = self.model.run(None, {'conv2d_1_input': roi_images})[0]
+                for cl, (stoplineId, plId, _, _, _, _) in zip(classes, rois):
+                    
+                    tfl_result = TrafficLightResult()
+                    tfl_result.light_id = plId
+                    tfl_result.lane_id = stoplineId
+                    tfl_result.recognition_result =  CLASSIFIER_RESULT_TO_TLRESULT[cl]
+                    tfl_result.recognition_result_str = CLASSIFIER_RESULT_TO_STRING[cl]
 
-            for prediction in predictions:
-                best_index = np.argmax(prediction)
-                classes.append(best_index)
-                scores.append(prediction[best_index])
-
-        if len(classes) > 0:
+                    tfl_results.append(tfl_result)
             
             tfl_status = TrafficLightResultArray()
+            tfl_status.header.stamp = camera_image_msg.header.stamp
+            tfl_status.results = tfl_results
 
-            for cl, (stoplineId, plId, _, _, _, _) in zip(classes, rois):
-                
-                tfl_result = TrafficLightResult()
-                tfl_result.light_id = plId
-                tfl_result.lane_id = stoplineId
-                tfl_result.recognition_result =  CLASSIFIER_RESULT_TO_TLRESULT[cl]
-                tfl_result.recognition_result_str = CLASSIFIER_RESULT_TO_STRING[cl]
-
-                tfl_status.results.append(tfl_result)
-            
-            self.tfl_status_pub.publish(tfl_status)
-        
-        if len(classes) == 0:
-            tfl_status = TrafficLightResultArray()
             self.tfl_status_pub.publish(tfl_status)
 
-        self.publish_roi_images(image=image,
-                                rois=rois,
-                                classes=classes,
-                                scores=scores,
-                                image_time_stamp=camera_image_msg.header.stamp)
+            self.publish_roi_images(image=image,
+                                    rois=rois,
+                                    classes=classes,
+                                    scores=scores,
+                                    image_time_stamp=camera_image_msg.header.stamp)
 
 
     def calculate_roi_coordinates(self, stoplines_on_path, transform):
@@ -205,9 +204,6 @@ class CameraTrafficLightDetector:
                 for _, _, x, y, z in bulbs:
                     # extract map coordinates for every light bulb 
                     point_map = Point(float(x), float(y), float(z))
-                    # print(point_map)
-
-                    # TODO
                     point_camera = do_transform_point(PointStamped(point=point_map), transform).point
                     u, v = self.camera_model.project3dToPixel((point_camera.x, point_camera.y, point_camera.z))
                     
