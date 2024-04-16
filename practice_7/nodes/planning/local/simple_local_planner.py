@@ -204,7 +204,7 @@ class SimpleLocalPlanner:
                 intersection_point = intersection_geometry.centroid
 
                 d_red_tfl_line = local_path.project(intersection_point)
-                vel_red_tfl_line = 0        # obstacle vlocity == 0 for stoplines
+                vel_red_tfl_line = 0        # obstacle velocity == 0 for stoplines
 
                 current_deceleration = (current_speed**2)/(2*(d_red_tfl_line - self.braking_safety_distance_stopline))        
 
@@ -295,10 +295,6 @@ class SimpleLocalPlanner:
                 red_tfl_id = result.lane_id
         
         self.red_tfl_id = red_tfl_id
-
-            
-
-        
 
 
     def extract_local_path(self, global_path_linestring, global_path_distances, d_ego_from_path_start, local_path_length):
