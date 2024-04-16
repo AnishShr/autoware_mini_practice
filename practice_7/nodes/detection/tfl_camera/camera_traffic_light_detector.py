@@ -183,6 +183,10 @@ class CameraTrafficLightDetector:
                 tfl_status.results.append(tfl_result)
             
             self.tfl_status_pub.publish(tfl_status)
+        
+        if len(classes) == 0:
+            tfl_status = TrafficLightResultArray()
+            self.tfl_status_pub.publish(tfl_status)
 
         self.publish_roi_images(image=image,
                                 rois=rois,
