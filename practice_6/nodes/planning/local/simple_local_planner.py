@@ -209,17 +209,15 @@ class SimpleLocalPlanner:
 
             # If the target velocity exceeds the target velocity permitted by lane restrictions,
             # limit the target velocity to the lane's max permitted velocity
-            target_velocities[target_velocities > lane_target_velocity] = lane_target_velocity
-            
-            # Getting the index of the obstacle that creates min target velocity
             min_target_vel_id = np.argmin(target_velocities)
-            
+            target_velocity = target_velocities[min_target_vel_id]
+            target_velocity = min(target_velocity, lane_target_velocity)
+
             # If the obstacle that creates min target velocity is not the goal point, then set local_path_blacked to True
             # Else it should be False
             if object_braking_distances[min_target_vel_id] == self.braking_safety_distance_obstacle:
                 local_path_blocked=True
-
-            target_velocity = target_velocities[min_target_vel_id]
+            
             closest_object_velocity = object_velocities[min_target_vel_id]
             closest_object_distance = object_distances[min_target_vel_id]
             stopping_point_distance = object_distances[min_target_vel_id] - object_braking_distances[min_target_vel_id]
