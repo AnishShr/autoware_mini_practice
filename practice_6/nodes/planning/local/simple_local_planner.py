@@ -139,33 +139,33 @@ class SimpleLocalPlanner:
         except (TransformException, rospy.ROSTimeMovedBackwardsException) as e:
             rospy.logwarn("%s - %s", rospy.get_name(), e)
             transform = None
-            
-
+        
+        
         for object in msg.objects:
             object_points = [(point.x, point.y) for point in object.convex_hull.polygon.points]
             object_polygon = Polygon(object_points)
             
-            min_dist = float('inf')
-            d = float('inf')
+            object_velocity = object.velocity.linear
 
+            if transform is not None:
+                vector3_stamped = Vector3Stamped(vector=object_velocity)
+                velocity = do_transform_vector3(vector3_stamped, transform).vector
+            else:
+                velocity = Vector3()
+            
+            transformed_velocity = velocity.x
+            
+            distances = []      # list to store distances of all vertex coordiantes of an obstacle along the local path
             for coords in object_polygon.exterior.coords:
                 if intersects(local_path_buffer, Point(coords)):
                     d = local_path.project(Point(coords))
-                    d = min(min_dist, d)
+                    distances.append(d)
             
-            if d <= self.local_path_length:
+            if len(distances) > 0:
+            
+                min_dist = min(distances)   # choose the distance closest to the ego vehicle as object distance
 
-                object_velocity = object.velocity.linear
-
-                if transform is not None:
-                    vector3_stamped = Vector3Stamped(vector=object_velocity)
-                    velocity = do_transform_vector3(vector3_stamped, transform).vector
-                else:
-                    velocity = Vector3()
-                
-                transformed_velocity = velocity.x
-                
-                object_distances.append(d)
+                object_distances.append(min_dist)
                 object_velocities.append(transformed_velocity)
                 object_braking_distances.append(self.braking_safety_distance_obstacle)
 
